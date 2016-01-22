@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:p="http://primefaces.org/ui"
+	xmlns:c="http://java.sun.com/jstl/core"
+	xmlns:pe="http://primefaces.org/ui/extensions">
+	
+	<ui:insert name="style"/>
+	<ui:insert name="script"/>
+	
+	<h:outputScript library="primefaces" name="jquery/jquery.js" />
+	<style type="text/css">body { font-size: 12px;	}</style>
+	
+	<p:growl id="msg" showDetail="true" showSummary="false" sticky="true"/>
+	
+	<p:layout fullPage="false" style="height:100%;">
+	    <p:layoutUnit position="north" size="50" collapsible="true">
+	        
+	    </p:layoutUnit>
+
+	    <p:layoutUnit position="west" size="260" header="Menu" collapsible="true" resizable="true">
+	        <ui:insert name="menu">
+				<div align="center">
+					<h:form id="formMenu">
+						<p:menu style="width: 240px" toggleable="true">
+							<p:submenu label="Contrato">
+								<p:menuitem value="Novo" outcome="/pages/cliente/list" icon="ui-icon-contact" />
+								<p:menuitem value="Renovação" outcome="/pages/cliente/list" icon="ui-icon-contact" />
+							</p:submenu>
+						</p:menu>
+						<p:menu style="width: 240px" toggleable="true">
+							<p:submenu label="Relatórios">
+							</p:submenu>
+						</p:menu>
+					</h:form>
+				</div>
+				</ui:insert>
+	    </p:layoutUnit>
+	 
+	    <p:layoutUnit position="center" resizable="true">
+	        	<ui:insert name="main">Main</ui:insert>
+	        	<ui:insert name="dialogs"></ui:insert>
+	    </p:layoutUnit>
+	</p:layout>
+	
+</ui:composition>	
+	

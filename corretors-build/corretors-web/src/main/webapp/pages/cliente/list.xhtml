@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui" template="/template.xhtml">
+	<ui:define name="main">
+		<h:form id="formNovoContrato">
+			<p:panel id="pnlTit" header="Titular" toggleable="true" toggleTitle="Minimizar">
+				<h:panelGrid columns="4" cellpadding="5">
+					<p:outputLabel for="txtNomeTit" value="Nome: " />
+					<p:inputText id="txtNomeTit" value="" required="true" requiredMessage="Campo obrigatório" />
+					<p:outputLabel for="txtRgTit" value="RG: " />
+					<p:inputText id="txtRgTit" value="" required="true" requiredMessage="Campo obrigatório" />
+					<p:outputLabel for="txtCpfTit" value="CPF: " />
+					<p:inputText id="txtCpfTit" value="" required="true" requiredMessage="Campo obrigatório" />
+					<p:outputLabel for="txtCepTit" value="CEP: " />
+					<p:inputText id="txtCepTit" value="" />
+					<p:outputLabel for="txtPaisTit" value="País: " />
+					<p:inputText id="txtPaisTit" value="" />
+					<p:outputLabel for="txtEstTit" value="Estado: " />
+					<p:inputText id="txtEstTit" value="" />
+					<p:outputLabel for="txtCidTit" value="Cidade: " />
+					<p:inputText id="txtCidTit" value="" />
+					<p:outputLabel for="txtBaiTit" value="Bairro: " />
+					<p:inputText id="txtBaiTit" value="" />
+					<p:outputLabel for="txtRuaTit" value="Rua: " />
+					<p:inputText id="txtRuaTit" value="" />
+					<p:outputLabel for="txtNumTit" value="Número: " />
+					<p:inputText id="txtNumTit" value="" />
+					<p:outputLabel for="txtTelTit" value="Telefone: " />
+					<p:inputText id="txtTelTit" value="" />
+					<p:outputLabel for="txtComTit" value="Tel. Comercial: " />
+					<p:inputText id="txtComTit" value="" />
+					<p:outputLabel for="txtFaxTip" value="Tel. Fax: " />
+					<p:inputText id="txtFaxTip" value="" />
+					<p:outputLabel for="txtCelTit" value="Celular: " />
+					<p:inputText id="txtCelTit" value="" />
+					<p:outputLabel for="txtEmailTit" value="E-mail: " />
+					<p:inputText id="txtEmailTit" value="" />
+				</h:panelGrid>
+			</p:panel>
+			<p:panel id="pnlDep" header="Dependente(s)" toggleable="true" toggleTitle="Minimizar">
+				<f:facet name="footer">
+					<p:commandButton value="Adicionar" process="@form" update=":formDlgAddDep" onstart="" oncomplete="PF('dlgAddDep').show();" />
+				</f:facet>
+			</p:panel>
+		</h:form>
+	</ui:define>
+	<ui:define name="dialogs">
+		<p:dialog id="dlgAddDep" header="Adicionar Dependente" appendTo="@(body)" modal="true" closable="true" resizable="false" maximizable="false" >
+			<h:form id="formDlgAddDep">
+				<p:panel id="pnlTit" header="Titular" toggleable="true" toggleTitle="Minimizar">
+					<h:panelGrid columns="4" cellpadding="5">
+						<p:outputLabel for="txtNomeDep" value="Nome: " />
+						<p:inputText id="txtNomeDep" value="" required="true" requiredMessage="Campo obrigatório" />
+						<p:outputLabel for="txtRgDep" value="RG: " />
+						<p:inputText id="txtRgDep" value="" required="true" requiredMessage="Campo obrigatório" />
+						<p:outputLabel for="txtCpfDep" value="CPF: " />
+						<p:inputText id="txtCpfDep" value="" required="true" requiredMessage="Campo obrigatório" />
+						<p:outputLabel for="txtCepDep" value="CEP: " />
+						<p:inputText id="txtCepDep" value="" />
+						<p:outputLabel for="txtPaisDep" value="País: " />
+						<p:inputText id="txtPaisDep" value="" />
+						<p:outputLabel for="txtEstDep" value="Estado: " />
+						<p:inputText id="txtEstDep" value="" />
+						<p:outputLabel for="txtCidDep" value="Cidade: " />
+						<p:inputText id="txtCidDep" value="" />
+						<p:outputLabel for="txtBaiDep" value="Bairro: " />
+						<p:inputText id="txtBaiDep" value="" />
+						<p:outputLabel for="txtRuaDep" value="Rua: " />
+						<p:inputText id="txtRuaDep" value="" />
+						<p:outputLabel for="txtNumDep" value="Número: " />
+						<p:inputText id="txtNumDep" value="" />
+						<p:outputLabel for="txtTelDep" value="Telefone: " />
+						<p:inputText id="txtTelDep" value="" />
+						<p:outputLabel for="txtComDep" value="Tel. Comercial: " />
+						<p:inputText id="txtComDep" value="" />
+						<p:outputLabel for="txtFaxDep" value="Tel. Fax: " />
+						<p:inputText id="txtFaxDep" value="" />
+						<p:outputLabel for="txtCelDep" value="Celular: " />
+						<p:inputText id="txtCelDep" value="" />
+						<p:outputLabel for="txtEmailDep" value="E-mail: " />
+						<p:inputText id="txtEmailDep" value="" />
+					</h:panelGrid>
+				</p:panel>
+			
+			</h:form>
+		</p:dialog>
+	</ui:define>
+</ui:composition>
