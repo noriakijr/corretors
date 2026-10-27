@@ -84,6 +84,21 @@ class LegacyContratoUniqueIndexTest {
 		List<String> uniqueColumns = uniqueIndexColumns();
 		assertThat(uniqueColumns).doesNotContain("TITULAR_ID", "VENDEDOR_ID", "PLANO_HISTORICO_ID");
 		assertThat(uniqueColumns).contains("PAGAMENTO_ID");
+		assertThat(foreignKeyColumns()).contains("TITULAR_ID", "VENDEDOR_ID", "PLANO_HISTORICO_ID", "PAGAMENTO_ID");
+	}
+
+	private List<String> foreignKeyColumns() throws Exception {
+		List<String> columns = new ArrayList<>();
+		try (Connection connection = dataSource.getConnection();
+				ResultSet keys = connection.getMetaData().getImportedKeys(null, null, "CONTRATO")) {
+			while (keys.next()) {
+				String column = keys.getString("FKCOLUMN_NAME");
+				if (column != null) {
+					columns.add(column.toUpperCase());
+				}
+			}
+		}
+		return columns;
 	}
 
 	private List<String> uniqueIndexColumns() throws Exception {

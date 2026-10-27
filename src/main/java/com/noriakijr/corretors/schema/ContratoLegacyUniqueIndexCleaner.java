@@ -7,7 +7,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -77,13 +79,32 @@ public class ContratoLegacyUniqueIndexCleaner implements InitializingBean {
 		if (table == null) {
 			return;
 		}
-		for (String constraint : uniqueConstraints(connection, table)) {
+		Map<String, List<String>> constraints = uniqueConstraints(connection, table);
+		Map<String, List<String>> indexes = uniqueIndexes(connection, table);
+		if (constraints.isEmpty() && indexes.isEmpty()) {
+			return;
+		}
+		Set<String> lockedColumns = new LinkedHashSet<>();
+		constraints.values().forEach(lockedColumns::addAll);
+		indexes.values().forEach(lockedColumns::addAll);
+		// H2 keeps the unique index and hands it to the foreign key if that key is
+		// dropped second. Remove the foreign keys first, then the unique index.
+		List<ForeignKey> foreignKeys = foreignKeys(connection, table, lockedColumns);
+		for (ForeignKey foreignKey : foreignKeys) {
+			execute(connection, "alter table " + quote(table) + " drop constraint " + quote(foreignKey.name()));
+			log.info("Dropped foreign key {} on {} before removing its legacy unique index", foreignKey.name(), table);
+		}
+		for (String constraint : constraints.keySet()) {
 			execute(connection, "alter table " + quote(table) + " drop constraint " + quote(constraint));
 			log.info("Dropped legacy unique constraint {} on {}", constraint, table);
 		}
-		for (String index : uniqueIndexes(connection, table)) {
+		for (String index : uniqueIndexes(connection, table).keySet()) {
 			execute(connection, "drop index " + quote(index));
 			log.info("Dropped legacy unique index {} on {}", index, table);
+		}
+		for (ForeignKey foreignKey : foreignKeys) {
+			execute(connection, foreignKey.recreateSql(table));
+			log.info("Restored foreign key {} on {}", foreignKey.name(), table);
 		}
 	}
 
@@ -100,7 +121,7 @@ public class ContratoLegacyUniqueIndexCleaner implements InitializingBean {
 		return null;
 	}
 
-	private static List<String> uniqueConstraints(Connection connection, String table) throws SQLException {
+	private static Map<String, List<String>> uniqueConstraints(Connection connection, String table) throws SQLException {
 		Map<String, List<String>> columnsByConstraint = new LinkedHashMap<>();
 		try (PreparedStatement statement = connection.prepareStatement(UNIQUE_CONSTRAINTS)) {
 			statement.setString(1, table.toUpperCase(Locale.ROOT));
@@ -116,10 +137,10 @@ public class ContratoLegacyUniqueIndexCleaner implements InitializingBean {
 				}
 			}
 		}
-		return namesCoveringOnlyLegacyColumns(columnsByConstraint);
+		return coveringOnlyLegacyColumns(columnsByConstraint);
 	}
 
-	private static List<String> uniqueIndexes(Connection connection, String table) throws SQLException {
+	private static Map<String, List<String>> uniqueIndexes(Connection connection, String table) throws SQLException {
 		Map<String, List<String>> columnsByIndex = new LinkedHashMap<>();
 		DatabaseMetaData meta = connection.getMetaData();
 		try (ResultSet rows = meta.getIndexInfo(connection.getCatalog(), null, table, true, false)) {
@@ -133,17 +154,46 @@ public class ContratoLegacyUniqueIndexCleaner implements InitializingBean {
 						.add(column.toUpperCase(Locale.ROOT));
 			}
 		}
-		return namesCoveringOnlyLegacyColumns(columnsByIndex);
+		return coveringOnlyLegacyColumns(columnsByIndex);
 	}
 
-	private static List<String> namesCoveringOnlyLegacyColumns(Map<String, List<String>> columnsByName) {
-		List<String> names = new ArrayList<>();
-		for (Map.Entry<String, List<String>> entry : columnsByName.entrySet()) {
-			if (!entry.getValue().isEmpty() && LEGACY_UNIQUE_COLUMNS.containsAll(entry.getValue())) {
-				names.add(entry.getKey());
+	private static List<ForeignKey> foreignKeys(Connection connection, String table, Set<String> lockedColumns)
+			throws SQLException {
+		Map<String, ForeignKey> keys = new LinkedHashMap<>();
+		try (ResultSet rows = connection.getMetaData().getImportedKeys(connection.getCatalog(), null, table)) {
+			while (rows.next()) {
+				String name = rows.getString("FK_NAME");
+				String column = rows.getString("FKCOLUMN_NAME");
+				String pkTable = rows.getString("PKTABLE_NAME");
+				String pkColumn = rows.getString("PKCOLUMN_NAME");
+				int updateRule = rows.getInt("UPDATE_RULE");
+				int deleteRule = rows.getInt("DELETE_RULE");
+				short sequence = rows.getShort("KEY_SEQ");
+				if (name == null || column == null) {
+					continue;
+				}
+				ForeignKey foreignKey = keys.computeIfAbsent(name,
+						ignored -> new ForeignKey(name, pkTable, updateRule, deleteRule));
+				foreignKey.addColumn(sequence, column, pkColumn);
 			}
 		}
-		return names;
+		List<ForeignKey> legacy = new ArrayList<>();
+		for (ForeignKey foreignKey : keys.values()) {
+			if (!foreignKey.fkColumns().isEmpty() && lockedColumns.containsAll(foreignKey.fkColumns())) {
+				legacy.add(foreignKey);
+			}
+		}
+		return legacy;
+	}
+
+	private static Map<String, List<String>> coveringOnlyLegacyColumns(Map<String, List<String>> columnsByName) {
+		Map<String, List<String>> matches = new LinkedHashMap<>();
+		for (Map.Entry<String, List<String>> entry : columnsByName.entrySet()) {
+			if (!entry.getValue().isEmpty() && LEGACY_UNIQUE_COLUMNS.containsAll(entry.getValue())) {
+				matches.put(entry.getKey(), entry.getValue());
+			}
+		}
+		return matches;
 	}
 
 	private static void execute(Connection connection, String sql) throws SQLException {
@@ -157,6 +207,72 @@ public class ContratoLegacyUniqueIndexCleaner implements InitializingBean {
 			throw new IllegalStateException("Refusing to quote identifier " + identifier);
 		}
 		return "\"" + identifier + "\"";
+	}
+
+	private static String referentialAction(int rule) {
+		return switch (rule) {
+			case DatabaseMetaData.importedKeyCascade -> "cascade";
+			case DatabaseMetaData.importedKeySetNull -> "set null";
+			case DatabaseMetaData.importedKeySetDefault -> "set default";
+			case DatabaseMetaData.importedKeyRestrict -> "restrict";
+			default -> "no action";
+		};
+	}
+
+	private static final class ForeignKey {
+
+		private final String name;
+		private final String pkTable;
+		private final int updateRule;
+		private final int deleteRule;
+		private final List<Column> columns = new ArrayList<>();
+
+		private ForeignKey(String name, String pkTable, int updateRule, int deleteRule) {
+			this.name = name;
+			this.pkTable = pkTable;
+			this.updateRule = updateRule;
+			this.deleteRule = deleteRule;
+		}
+
+		private String name() {
+			return name;
+		}
+
+		private void addColumn(int sequence, String fkColumn, String pkColumn) {
+			columns.add(new Column(sequence, fkColumn, pkColumn));
+			columns.sort(Comparator.comparingInt(Column::sequence));
+		}
+
+		private List<String> fkColumns() {
+			return columns.stream().map(column -> column.fkColumn().toUpperCase(Locale.ROOT)).toList();
+		}
+
+		private String recreateSql(String table) {
+			StringBuilder sql = new StringBuilder();
+			sql.append("alter table ").append(quote(table));
+			sql.append(" add constraint ").append(quote(name));
+			sql.append(" foreign key (");
+			for (int i = 0; i < columns.size(); i++) {
+				if (i > 0) {
+					sql.append(", ");
+				}
+				sql.append(quote(columns.get(i).fkColumn()));
+			}
+			sql.append(") references ").append(quote(pkTable)).append(" (");
+			for (int i = 0; i < columns.size(); i++) {
+				if (i > 0) {
+					sql.append(", ");
+				}
+				sql.append(quote(columns.get(i).pkColumn()));
+			}
+			sql.append(") on update ").append(referentialAction(updateRule));
+			sql.append(" on delete ").append(referentialAction(deleteRule));
+			return sql.toString();
+		}
+
+	}
+
+	private record Column(int sequence, String fkColumn, String pkColumn) {
 	}
 
 }
