@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -29,7 +29,12 @@ export default function App() {
   const [planos, setPlanos] = useState<Plano[]>([]);
   const [titulares, setTitulares] = useState<Titular[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [contratosTitularId, setContratosTitularId] = useState<number | null>(null);
+  const [contratosLoading, setContratosLoading] = useState(false);
   const [selectedTitularId, setSelectedTitularId] = useState<number | null>(null);
+  const selectedTitularRef = useRef<number | null>(null);
+  const contratosRequestId = useRef(0);
+  const contratosTitularRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +46,44 @@ export default function App() {
   const [titularCelular, setTitularCelular] = useState('');
   const [titularCidade, setTitularCidade] = useState('');
 
-  const loadContratos = useCallback(async (titularId: number) => {
-    const next = await listContratosByTitular(titularId);
+  const publishContratos = useCallback((titularId: number | null, next: Contrato[]) => {
+    contratosTitularRef.current = titularId;
+    setContratosTitularId(titularId);
     setContratos(next);
   }, []);
+
+  const loadContratos = useCallback(async (titularId: number) => {
+    if (selectedTitularRef.current !== titularId) {
+      return;
+    }
+    const requestId = ++contratosRequestId.current;
+    const switchingTitular = contratosTitularRef.current !== titularId;
+    if (switchingTitular) {
+      publishContratos(null, []);
+      setContratosLoading(true);
+    }
+    const stillCurrent = () =>
+      requestId === contratosRequestId.current && selectedTitularRef.current === titularId;
+    try {
+      const next = await listContratosByTitular(titularId);
+      if (!stillCurrent()) {
+        return;
+      }
+      publishContratos(titularId, next);
+    } catch (cause) {
+      if (!stillCurrent()) {
+        return;
+      }
+      if (switchingTitular) {
+        publishContratos(null, []);
+      }
+      throw cause;
+    } finally {
+      if (stillCurrent()) {
+        setContratosLoading(false);
+      }
+    }
+  }, [publishContratos]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -52,33 +91,41 @@ export default function App() {
       const [nextPlanos, nextTitulares] = await Promise.all([listPlanos(), listTitulares()]);
       setPlanos(nextPlanos);
       setTitulares(nextTitulares);
+      const currentId = selectedTitularRef.current;
       const nextSelected =
-        selectedTitularId != null && nextTitulares.some((t) => t.id === selectedTitularId)
-          ? selectedTitularId
+        currentId != null && nextTitulares.some((t) => t.id === currentId)
+          ? currentId
           : (nextTitulares[0]?.id ?? null);
+      selectedTitularRef.current = nextSelected;
       setSelectedTitularId(nextSelected);
       if (nextSelected != null) {
         await loadContratos(nextSelected);
       } else {
-        setContratos([]);
+        contratosRequestId.current += 1;
+        publishContratos(null, []);
+        setContratosLoading(false);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao falar com a API');
     } finally {
       setLoading(false);
     }
-  }, [loadContratos, selectedTitularId]);
+  }, [loadContratos, publishContratos]);
 
   useEffect(() => {
     void load();
   }, []);
 
   async function onSelectTitular(titularId: number) {
+    selectedTitularRef.current = titularId;
     setSelectedTitularId(titularId);
     setError(null);
     try {
       await loadContratos(titularId);
     } catch (cause) {
+      if (selectedTitularRef.current !== titularId) {
+        return;
+      }
       setError(cause instanceof Error ? cause.message : 'Falha ao listar contratos');
     }
   }
@@ -141,12 +188,16 @@ export default function App() {
   }
 
   async function onRenew(contrato: Contrato) {
+    const titularId = selectedTitularRef.current;
+    if (titularId == null || contrato.titularId !== titularId) {
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await renewContrato(contrato.id);
-      if (selectedTitularId != null) {
-        await loadContratos(selectedTitularId);
+      if (titularId != null && selectedTitularRef.current === titularId) {
+        await loadContratos(titularId);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao renovar contrato');
@@ -266,6 +317,8 @@ export default function App() {
         </Text>
         {selectedTitularId == null ? (
           <Text style={styles.empty}>Cadastre um titular para ver contratos.</Text>
+        ) : contratosTitularId !== selectedTitularId ? (
+          contratosLoading ? <ActivityIndicator color="#1f4b3a" style={styles.spinner} /> : null
         ) : contratos.length === 0 ? (
           <Text style={styles.empty}>Nenhum contrato para este titular.</Text>
         ) : (
