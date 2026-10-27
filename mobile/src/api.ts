@@ -72,6 +72,45 @@ export type TitularInput = {
   contato?: ContatoInput;
 };
 
+export type ContratoStatus = 'ATIVO' | 'ENCERRADO' | 'RENOVADO' | 'CANCELADO';
+
+export type Contrato = {
+  id: number;
+  codigo: string | null;
+  descricao: string | null;
+  dtAquisicao: string | null;
+  dtInicio: string | null;
+  dtFim: string | null;
+  status: ContratoStatus;
+  titularId: number;
+  vendedorId: number | null;
+  planoHistoricoId: number | null;
+  planoId: number | null;
+  valor: number | null;
+  pagamentoId: number | null;
+  contratoAnteriorId: number | null;
+};
+
+export type ContratoInput = {
+  titularId: number;
+  vendedorId: number;
+  planoId: number;
+  valor: number;
+  codigo?: string;
+  descricao?: string;
+  dtAquisicao?: string;
+  dtInicio?: string;
+  dtFim?: string;
+};
+
+export type RenovarContratoInput = {
+  dtInicio?: string;
+  dtFim?: string;
+  valor?: number;
+  codigo?: string;
+  descricao?: string;
+};
+
 export function apiBase(): string {
   const configured = process.env.EXPO_PUBLIC_API_URL;
   if (configured && configured.length > 0) {
@@ -113,6 +152,24 @@ export function listTitulares(): Promise<Titular[]> {
 
 export function createTitular(input: TitularInput): Promise<Titular> {
   return request<Titular>('/api/titulares', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function listContratosByTitular(titularId: number): Promise<Contrato[]> {
+  return request<Contrato[]>(`/api/titulares/${titularId}/contratos`);
+}
+
+export function createContrato(input: ContratoInput): Promise<Contrato> {
+  return request<Contrato>('/api/contratos', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function renewContrato(id: number, input: RenovarContratoInput = {}): Promise<Contrato> {
+  return request<Contrato>(`/api/contratos/${id}/renovar`, {
     method: 'POST',
     body: JSON.stringify(input),
   });

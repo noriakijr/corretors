@@ -15,9 +15,12 @@ import {
 import {
   createPlano,
   createTitular,
+  listContratosByTitular,
   listPlanos,
   listTitulares,
+  renewContrato,
   apiBase,
+  type Contrato,
   type Plano,
   type Titular,
 } from './src/api';
@@ -25,6 +28,8 @@ import {
 export default function App() {
   const [planos, setPlanos] = useState<Plano[]>([]);
   const [titulares, setTitulares] = useState<Titular[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [selectedTitularId, setSelectedTitularId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,22 +41,47 @@ export default function App() {
   const [titularCelular, setTitularCelular] = useState('');
   const [titularCidade, setTitularCidade] = useState('');
 
+  const loadContratos = useCallback(async (titularId: number) => {
+    const next = await listContratosByTitular(titularId);
+    setContratos(next);
+  }, []);
+
   const load = useCallback(async () => {
     setError(null);
     try {
       const [nextPlanos, nextTitulares] = await Promise.all([listPlanos(), listTitulares()]);
       setPlanos(nextPlanos);
       setTitulares(nextTitulares);
+      const nextSelected =
+        selectedTitularId != null && nextTitulares.some((t) => t.id === selectedTitularId)
+          ? selectedTitularId
+          : (nextTitulares[0]?.id ?? null);
+      setSelectedTitularId(nextSelected);
+      if (nextSelected != null) {
+        await loadContratos(nextSelected);
+      } else {
+        setContratos([]);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao falar com a API');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadContratos, selectedTitularId]);
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, []);
+
+  async function onSelectTitular(titularId: number) {
+    setSelectedTitularId(titularId);
+    setError(null);
+    try {
+      await loadContratos(titularId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao listar contratos');
+    }
+  }
 
   async function onCreatePlano() {
     const nome = planoNome.trim();
@@ -110,6 +140,23 @@ export default function App() {
     }
   }
 
+  async function onRenew(contrato: Contrato) {
+    setSaving(true);
+    setError(null);
+    try {
+      await renewContrato(contrato.id);
+      if (selectedTitularId != null) {
+        await loadContratos(selectedTitularId);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao renovar contrato');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const selectedTitular = titulares.find((t) => t.id === selectedTitularId) ?? null;
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -118,7 +165,7 @@ export default function App() {
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.kicker}>Corretors</Text>
-        <Text style={styles.title}>Planos e titulares</Text>
+        <Text style={styles.title}>Planos, titulares e contratos</Text>
         <Text style={styles.api}>{apiBase()}</Text>
 
         {loading ? <ActivityIndicator color="#1f4b3a" style={styles.spinner} /> : null}
@@ -159,7 +206,11 @@ export default function App() {
           <Text style={styles.empty}>Nenhum titular cadastrado.</Text>
         ) : null}
         {titulares.map((titular) => (
-          <View key={titular.id} style={styles.card}>
+          <Pressable
+            key={titular.id}
+            style={[styles.card, selectedTitularId === titular.id && styles.cardSelected]}
+            onPress={() => void onSelectTitular(titular.id)}
+          >
             <Text style={styles.cardTitle}>{titular.nome}</Text>
             {titular.cpf ? <Text style={styles.cardBody}>CPF {titular.cpf}</Text> : null}
             {titular.contato?.celular ? (
@@ -168,7 +219,10 @@ export default function App() {
             {titular.contato?.endereco?.cidade ? (
               <Text style={styles.cardBody}>{titular.contato.endereco.cidade}</Text>
             ) : null}
-          </View>
+            <Text style={styles.cardHint}>
+              {selectedTitularId === titular.id ? 'Selecionado' : 'Toque para ver contratos'}
+            </Text>
+          </Pressable>
         ))}
         <TextInput
           style={styles.input}
@@ -206,9 +260,56 @@ export default function App() {
         >
           <Text style={styles.buttonText}>Adicionar titular</Text>
         </Pressable>
+
+        <Text style={styles.section}>
+          Contratos{selectedTitular ? ` — ${selectedTitular.nome}` : ''}
+        </Text>
+        {selectedTitularId == null ? (
+          <Text style={styles.empty}>Cadastre um titular para ver contratos.</Text>
+        ) : contratos.length === 0 ? (
+          <Text style={styles.empty}>Nenhum contrato para este titular.</Text>
+        ) : (
+          contratos.map((contrato) => (
+            <View key={contrato.id} style={styles.card}>
+              <Text style={styles.cardTitle}>
+                {contrato.codigo ?? `Contrato #${contrato.id}`} · {contrato.status}
+              </Text>
+              {contrato.descricao ? <Text style={styles.cardBody}>{contrato.descricao}</Text> : null}
+              <Text style={styles.cardBody}>
+                Vigência {formatDate(contrato.dtInicio)} → {formatDate(contrato.dtFim)}
+              </Text>
+              {contrato.valor != null ? (
+                <Text style={styles.cardBody}>Valor R$ {contrato.valor.toFixed(2)}</Text>
+              ) : null}
+              {contrato.contratoAnteriorId != null ? (
+                <Text style={styles.cardBody}>Renovação de #{contrato.contratoAnteriorId}</Text>
+              ) : null}
+              {contrato.status === 'ATIVO' ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.buttonSecondary,
+                    pressed && styles.buttonSecondaryPressed,
+                    saving && styles.buttonDisabled,
+                  ]}
+                  onPress={() => void onRenew(contrato)}
+                  disabled={saving}
+                >
+                  <Text style={styles.buttonSecondaryText}>Renovar</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ))
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
+}
+
+function formatDate(value: string | null): string {
+  if (!value) {
+    return '—';
+  }
+  return value.slice(0, 10);
 }
 
 const styles = StyleSheet.create({
@@ -266,6 +367,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  cardSelected: {
+    borderColor: '#1f4b3a',
   },
   cardTitle: {
     color: '#1c2430',
@@ -275,6 +381,11 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#4d463e',
     marginTop: 2,
+  },
+  cardHint: {
+    color: '#6e675e',
+    fontSize: 12,
+    marginTop: 6,
   },
   input: {
     backgroundColor: '#fffdf8',
@@ -302,6 +413,22 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#f4f1ea',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  buttonSecondary: {
+    alignItems: 'center',
+    borderColor: '#1f4b3a',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingVertical: 10,
+  },
+  buttonSecondaryPressed: {
+    backgroundColor: '#e8efe9',
+  },
+  buttonSecondaryText: {
+    color: '#1f4b3a',
+    fontSize: 15,
     fontWeight: '700',
   },
 });
