@@ -60,6 +60,12 @@ Testes, inclusive a carga do contexto Spring:
 | POST | `/api/planos` | cria plano. `nome` é obrigatório |
 | GET | `/api/titulares` | lista titulares, com Contato e Endereco |
 | POST | `/api/titulares` | cria titular. `nome` é obrigatório |
+| GET | `/api/titulares/{id}/contratos` | lista contratos do titular (vigência e status) |
+| POST | `/api/contratos` | cria contrato `ATIVO` com snapshot de preço (`planoId` + `valor`) |
+| GET | `/api/contratos/{id}` | detalhe do contrato |
+| POST | `/api/contratos/{id}/renovar` | cria **novo** contrato ligado ao anterior (`contratoAnterior`); o anterior vira `RENOVADO` |
+
+Um titular pode ter vários contratos `ATIVO` ao mesmo tempo (ex.: saúde + vida). Renovação não estende o registro: nasce uma linha nova com `dtInicio`/`dtFim` e novo `PlanoHistorico`. Status: `ATIVO`, `ENCERRADO`, `RENOVADO`, `CANCELADO`.
 
 Exemplo:
 
@@ -71,9 +77,17 @@ curl -s -X POST http://localhost:8080/api/planos \
 curl -s -X POST http://localhost:8080/api/titulares \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Ana Souza","cpf":"12345678901","contato":{"celular":"31999998888","endereco":{"cidade":"Belo Horizonte"}}}'
+
+curl -s -X POST http://localhost:8080/api/contratos \
+  -H 'Content-Type: application/json' \
+  -d '{"titularId":1,"vendedorId":1,"planoId":1,"valor":199.9,"codigo":"CT-1","dtInicio":"2026-01-01T00:00:00","dtFim":"2027-01-01T00:00:00"}'
+
+curl -s -X POST http://localhost:8080/api/contratos/1/renovar \
+  -H 'Content-Type: application/json' \
+  -d '{"valor":210.0}'
 ```
 
-As demais entidades (Dependente, Vendedor, Usuario, PlanoHistorico, Pagamento, Parcela, Contrato) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI` e `CRED`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
+`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava `PlanoHistorico`). Vendedor ainda não tem endpoint próprio: cadastre via H2/console ou testes. As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI` e `CRED`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
 
 ## Aplicativo
 
@@ -91,7 +105,7 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:8080 npm start
 
 No simulador iOS, `http://localhost:8080` serve. Em um aparelho físico, use o IP da máquina na rede.
 
-A tela lista e cria planos e titulares. Ao abrir, chama `GET /api/planos` e `GET /api/titulares`. Os botões chamam os `POST`.
+A tela lista e cria planos e titulares, e lista os contratos do titular selecionado com botão **Renovar** (`POST /api/contratos/{id}/renovar`). Ao abrir, chama `GET /api/planos` e `GET /api/titulares`; ao escolher um titular, chama `GET /api/titulares/{id}/contratos`.
 
 Sem emulador, o cliente HTTP da mesma tela pode falar com a API que já está no ar:
 

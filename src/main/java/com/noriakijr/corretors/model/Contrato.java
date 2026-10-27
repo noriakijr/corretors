@@ -4,10 +4,13 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 
 @Entity
@@ -25,21 +28,32 @@ public class Contrato implements Serializable, IEntity {
 
 	private LocalDateTime dtAquisicao;
 
-	@OneToOne
-	@JoinColumn(name = "titular_id")
+	private LocalDateTime dtInicio;
+
+	private LocalDateTime dtFim;
+
+	@Enumerated(EnumType.STRING)
+	private ContratoStatus status;
+
+	@ManyToOne(optional = false)
+	@JoinColumn(name = "titular_id", nullable = false)
 	private Titular titular;
 
-	@OneToOne
+	@ManyToOne
 	@JoinColumn(name = "vendedor_id")
 	private Vendedor vendedor;
 
-	@OneToOne
+	@ManyToOne
 	@JoinColumn(name = "planoHistorico_id")
 	private PlanoHistorico planoHistorico;
 
 	@OneToOne
 	@JoinColumn(name = "pagamento_id")
 	private Pagamento pagamento;
+
+	@ManyToOne
+	@JoinColumn(name = "contrato_anterior_id")
+	private Contrato contratoAnterior;
 
 	@Override
 	public Long getId() {
@@ -74,6 +88,30 @@ public class Contrato implements Serializable, IEntity {
 		this.dtAquisicao = dtAquisicao;
 	}
 
+	public LocalDateTime getDtInicio() {
+		return dtInicio;
+	}
+
+	public void setDtInicio(LocalDateTime dtInicio) {
+		this.dtInicio = dtInicio;
+	}
+
+	public LocalDateTime getDtFim() {
+		return dtFim;
+	}
+
+	public void setDtFim(LocalDateTime dtFim) {
+		this.dtFim = dtFim;
+	}
+
+	public ContratoStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ContratoStatus status) {
+		this.status = status;
+	}
+
 	public Titular getTitular() {
 		return titular;
 	}
@@ -104,6 +142,14 @@ public class Contrato implements Serializable, IEntity {
 
 	public void setPagamento(Pagamento pagamento) {
 		this.pagamento = pagamento;
+	}
+
+	public Contrato getContratoAnterior() {
+		return contratoAnterior;
+	}
+
+	public void setContratoAnterior(Contrato contratoAnterior) {
+		this.contratoAnterior = contratoAnterior;
 	}
 
 }
