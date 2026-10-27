@@ -87,8 +87,8 @@ public class ContratoLegacyUniqueIndexCleaner implements InitializingBean {
 		Set<String> lockedColumns = new LinkedHashSet<>();
 		constraints.values().forEach(lockedColumns::addAll);
 		indexes.values().forEach(lockedColumns::addAll);
-		// H2 keeps the unique index and hands it to the foreign key if that key is
-		// dropped second. Remove the foreign keys first, then the unique index.
+		// Drop the foreign key before the unique constraint. H2 otherwise keeps the
+		// unique index and reassigns it to the foreign key, so duplicates still fail.
 		List<ForeignKey> foreignKeys = foreignKeys(connection, table, lockedColumns);
 		for (ForeignKey foreignKey : foreignKeys) {
 			execute(connection, "alter table " + quote(table) + " drop constraint " + quote(foreignKey.name()));
