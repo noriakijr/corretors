@@ -88,7 +88,8 @@ h3 {
   outline-offset: 2px;
 }
 
-input[type='checkbox'] {
+input[type='checkbox'],
+input[type='radio'] {
   accent-color: var(--primary);
 }
 
@@ -493,6 +494,86 @@ input[type='checkbox'] {
   align-items: end;
 }
 
+.pay-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.pay-options legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.pay-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.pay-option.active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+}
+
+.pay-option input {
+  margin-top: 4px;
+}
+
+.pay-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pay-copy small {
+  color: var(--text-secondary);
+}
+
+.pay-copy strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0;
+}
+
+.totals div {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.totals dt {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.totals dd {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
 @media (max-width: 1100px) {
   .shell {
     flex-direction: column;
@@ -516,7 +597,9 @@ input[type='checkbox'] {
   .split,
   .ficha,
   .form-grid,
-  .inline-create {
+  .inline-create,
+  .pay-options,
+  .totals {
     grid-template-columns: 1fr;
   }
 

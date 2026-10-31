@@ -48,6 +48,27 @@ export function formatDateTime(value: string | null | undefined): string {
   return `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}`;
 }
 
+export function planoPreco(plano: { valor?: number | null } | null | undefined): number | undefined {
+  const valor = plano?.valor;
+  if (typeof valor === 'number' && Number.isFinite(valor)) {
+    return valor;
+  }
+  return undefined;
+}
+
+export function moneyInput(value: number): string {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function parseParcelas(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return parsed >= 1 ? parsed : undefined;
+}
+
 export function formatMoney(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) {
     return '—';

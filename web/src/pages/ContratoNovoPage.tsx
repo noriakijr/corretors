@@ -11,7 +11,7 @@ import {
   listVendedores,
 } from '../api.ts';
 import type { PagamentoType, Plano, Titular, Vendedor } from '../api.ts';
-import { filled, parseDecimal, toApiDateTime } from '../format.ts';
+import { filled, formatMoney, moneyInput, parseDecimal, parseParcelas, planoPreco, toApiDateTime } from '../format.ts';
 import { ErrorBanner, Field } from '../components/ui.tsx';
 
 const TIPOS: { value: PagamentoType; label: string }[] = [
@@ -46,6 +46,8 @@ export function ContratoNovoPage() {
   const [vendedorId, setVendedorId] = useState('');
   const [novoVendedor, setNovoVendedor] = useState('');
   const [valor, setValor] = useState('');
+  const [modo, setModo] = useState<'vista' | 'parcelado'>('vista');
+  const [parcelas, setParcelas] = useState('2');
   const [codigo, setCodigo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [dtAquisicao, setDtAquisicao] = useState('');
@@ -132,6 +134,13 @@ export function ContratoNovoPage() {
       setError('Informe um desconto numérico ou deixe em branco.');
       return;
     }
+    if (modo === 'parcelado') {
+      const quantidade = parseParcelas(parcelas);
+      if (quantidade === undefined || quantidade < 2) {
+        setError('Informe a quantidade de parcelas, com 2 ou mais.');
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
     try {
@@ -159,13 +168,36 @@ export function ContratoNovoPage() {
     }
   }
 
+  const planoSelecionado = planos.find((item) => String(item.id) === planoId);
+  const precoCatalogo = planoPreco(planoSelecionado);
+  const base = parseDecimal(valor);
+  const descontoInformado = parseDecimal(vlrDesconto);
+  const descontoAplicado =
+    descontoInformado === undefined || Number.isNaN(descontoInformado) ? 0 : descontoInformado;
+  const total =
+    base === undefined || Number.isNaN(base) || Number.isNaN(descontoInformado ?? 0)
+      ? undefined
+      : base - descontoAplicado;
+  const quantidade = parseParcelas(parcelas);
+  const cadaParcela = total !== undefined && quantidade !== undefined ? total / quantidade : undefined;
+
+  function onPlanoChange(nextId: string) {
+    setPlanoId(nextId);
+    const plano = planos.find((item) => String(item.id) === nextId);
+    const preco = planoPreco(plano);
+    if (preco !== undefined) {
+      setValor(moneyInput(preco));
+    }
+  }
+
   return (
     <div className="page narrow">
       <header className="page-head">
         <div>
           <h1>Nova venda</h1>
           <p className="lede">
-            Titular fixo nesta ficha. O valor informado congela o preço do plano neste contrato.
+            Titular fixo nesta ficha. À vista e parcelado usam o preço do plano, ou o valor informado quando o
+            catálogo não tem preço. O total já inclui o desconto.
           </p>
         </div>
         {titularId != null ? (
@@ -185,7 +217,7 @@ export function ContratoNovoPage() {
           </dl>
           <div className="form-grid">
             <Field label="Plano" wide>
-              <select value={planoId} onChange={(event) => setPlanoId(event.target.value)}>
+              <select value={planoId} onChange={(event) => onPlanoChange(event.target.value)}>
                 <option value="">Selecione o plano</option>
                 {planos.map((plano) => (
                   <option key={plano.id} value={plano.id}>
@@ -236,6 +268,81 @@ export function ContratoNovoPage() {
             <Field label="Valor (R$)">
               <input value={valor} onChange={(event) => setValor(event.target.value)} inputMode="decimal" />
             </Field>
+            <Field label="Desconto (R$)">
+              <input
+                value={vlrDesconto}
+                onChange={(event) => setVlrDesconto(event.target.value)}
+                inputMode="decimal"
+              />
+            </Field>
+            {planoId ? (
+              <p className="note wide">
+                {precoCatalogo !== undefined
+                  ? 'Preço atual do plano. À vista e parcelado partem dele, e o desconto já entra no total.'
+                  : 'Este plano não tem preço de catálogo. O valor informado é a base de à vista e parcelado.'}
+              </p>
+            ) : null}
+            {planoId ? (
+              <fieldset className="pay-options wide">
+                <legend>Forma de pagamento</legend>
+                <label className={modo === 'vista' ? 'pay-option active' : 'pay-option'}>
+                  <input
+                    type="radio"
+                    name="modo-pagamento"
+                    checked={modo === 'vista'}
+                    onChange={() => setModo('vista')}
+                  />
+                  <span className="pay-copy">
+                    <small>À vista</small>
+                    <strong>{formatMoney(total)}</strong>
+                  </span>
+                </label>
+                <label className={modo === 'parcelado' ? 'pay-option active' : 'pay-option'}>
+                  <input
+                    type="radio"
+                    name="modo-pagamento"
+                    checked={modo === 'parcelado'}
+                    onChange={() => setModo('parcelado')}
+                  />
+                  <span className="pay-copy">
+                    <small>Parcelado</small>
+                    <strong>{formatMoney(cadaParcela ?? total)}</strong>
+                    {total === undefined ? (
+                      <small>Informe o valor</small>
+                    ) : cadaParcela !== undefined && quantidade !== undefined ? (
+                      <small>
+                        {quantidade}× {formatMoney(cadaParcela)}
+                      </small>
+                    ) : (
+                      <small>Informe a quantidade de parcelas</small>
+                    )}
+                  </span>
+                </label>
+              </fieldset>
+            ) : null}
+            {planoId && modo === 'parcelado' ? (
+              <Field label="Quantidade de parcelas">
+                <input
+                  value={parcelas}
+                  onChange={(event) => setParcelas(event.target.value)}
+                  inputMode="numeric"
+                />
+              </Field>
+            ) : null}
+            {planoId && total !== undefined ? (
+              <dl className="totals wide">
+                <div>
+                  <dt>Valor total</dt>
+                  <dd>{formatMoney(total)}</dd>
+                </div>
+                {modo === 'parcelado' ? (
+                  <div>
+                    <dt>Valor de cada parcela</dt>
+                    <dd>{formatMoney(cadaParcela)}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            ) : null}
             <Field label="Código">
               <input value={codigo} onChange={(event) => setCodigo(event.target.value)} />
             </Field>
@@ -271,13 +378,6 @@ export function ContratoNovoPage() {
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field label="Desconto (R$)">
-              <input
-                value={vlrDesconto}
-                onChange={(event) => setVlrDesconto(event.target.value)}
-                inputMode="decimal"
-              />
             </Field>
           </div>
           <div className="actions">
