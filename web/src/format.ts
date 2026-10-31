@@ -4,15 +4,52 @@ export function filled(value: string): string | undefined {
 }
 
 export function parseDecimal(value: string): number | undefined {
-  const trimmed = value.trim();
+  const trimmed = value.trim().replace(/\s/g, '');
   if (!trimmed) {
     return undefined;
   }
-  const normalized = trimmed.replace(/\s/g, '').replace(',', '.');
-  if (!/^[+-]?\d+(\.\d+)?$/.test(normalized)) {
+  if (!/^[\d.,]+$/.test(trimmed)) {
+    return Number.NaN;
+  }
+
+  let normalized: string;
+  const commas = trimmed.split(',').length - 1;
+  const dots = trimmed.split('.').length - 1;
+  if (commas > 1) {
+    return Number.NaN;
+  }
+  if (commas === 1) {
+    normalized = trimmed.replace(/\./g, '').replace(',', '.');
+  } else if (dots > 1) {
+    normalized = trimmed.replace(/\./g, '');
+  } else if (dots === 1) {
+    const fraction = trimmed.split('.')[1] ?? '';
+    normalized = fraction.length === 3 ? trimmed.replace('.', '') : trimmed;
+  } else {
+    normalized = trimmed;
+  }
+  if (normalized.endsWith('.')) {
+    normalized = normalized.slice(0, -1);
+  }
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
     return Number.NaN;
   }
   return Number(normalized);
+}
+
+export function sanitizeMoneyTyping(value: string): string {
+  const cleaned = value.replace(/[^\d.,]/g, '');
+  const commaAt = cleaned.indexOf(',');
+  if (commaAt === -1) {
+    return cleaned;
+  }
+  const whole = cleaned.slice(0, commaAt + 1);
+  const fraction = cleaned.slice(commaAt + 1).replace(/[.,]/g, '').slice(0, 2);
+  return whole + fraction;
+}
+
+export function digitsOnly(value: string): string {
+  return value.replace(/\D/g, '');
 }
 
 export function toApiDateTime(value: string): string | undefined {

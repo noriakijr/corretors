@@ -59,8 +59,10 @@ Testes, inclusive a carga do contexto Spring:
 
 | Método | Caminho | Uso |
 | --- | --- | --- |
-| GET | `/api/planos` | lista planos (`id`, `nome`, `descricao`) |
-| POST | `/api/planos` | cria plano. `nome` é obrigatório |
+| GET | `/api/planos` | lista planos (`id`, `nome`, `descricao`, `valor` vigente) |
+| POST | `/api/planos` | cria plano. `nome` é obrigatório. `valor` opcional grava o primeiro preço |
+| GET | `/api/planos/{id}/precos` | histórico completo de preços do catálogo, o mais novo primeiro (`valor`, `dtModif`) |
+| POST | `/api/planos/{id}/precos` | registra um novo preço. O snapshot da venda não entra nesse histórico |
 | GET | `/api/vendedores` | lista vendedores (`id`, `nome`) |
 | POST | `/api/vendedores` | cria vendedor. `nome` é obrigatório |
 | GET | `/api/titulares` | lista titulares, com Contato e Endereco |
@@ -96,7 +98,7 @@ curl -s -X POST http://localhost:8080/api/contratos/1/renovar \
   -d '{"valor":210.0}'
 ```
 
-`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava `PlanoHistorico`). O `vendedorId` vem de `GET` / `POST /api/vendedores` (`nome` obrigatório). As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI` e `CRED`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
+`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava um snapshot em `PlanoHistorico`, separado do histórico de catálogo). O preço vigente do plano é o último `POST /api/planos/{id}/precos`. O `vendedorId` vem de `GET` / `POST /api/vendedores` (`nome` obrigatório). As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI` e `CRED`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
 
 Não há listagem global de contratos: o contrato se alcança por `GET /api/titulares/{id}/contratos` e o detalhe por `GET /api/contratos/{id}`.
 

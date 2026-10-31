@@ -12,7 +12,7 @@ import {
 } from '../api.ts';
 import type { PagamentoType, Plano, Titular, Vendedor } from '../api.ts';
 import { filled, formatMoney, moneyInput, parseDecimal, parseParcelas, planoPreco, toApiDateTime } from '../format.ts';
-import { ErrorBanner, Field } from '../components/ui.tsx';
+import { DigitsInput, ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
 
 const TIPOS: { value: PagamentoType; label: string }[] = [
   { value: 'DINHEIRO', label: 'Dinheiro' },
@@ -266,19 +266,15 @@ export function ContratoNovoPage() {
               </button>
             </div>
             <Field label="Valor (R$)">
-              <input value={valor} onChange={(event) => setValor(event.target.value)} inputMode="decimal" />
+              <MoneyInput value={valor} onChange={setValor} />
             </Field>
             <Field label="Desconto (R$)">
-              <input
-                value={vlrDesconto}
-                onChange={(event) => setVlrDesconto(event.target.value)}
-                inputMode="decimal"
-              />
+              <MoneyInput value={vlrDesconto} onChange={setVlrDesconto} />
             </Field>
             {planoId ? (
               <p className="note wide">
                 {precoCatalogo !== undefined
-                  ? 'Preço atual do plano. À vista e parcelado partem dele, e o desconto já entra no total.'
+                  ? 'À vista veio do preço atual do plano. Parcelado usa essa base, o desconto e a quantidade de parcelas.'
                   : 'Este plano não tem preço de catálogo. O valor informado é a base de à vista e parcelado.'}
               </p>
             ) : null}
@@ -322,11 +318,7 @@ export function ContratoNovoPage() {
             ) : null}
             {planoId && modo === 'parcelado' ? (
               <Field label="Quantidade de parcelas">
-                <input
-                  value={parcelas}
-                  onChange={(event) => setParcelas(event.target.value)}
-                  inputMode="numeric"
-                />
+                <DigitsInput value={parcelas} onChange={setParcelas} />
               </Field>
             ) : null}
             {planoId && total !== undefined ? (

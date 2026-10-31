@@ -25,6 +25,8 @@ public class PlanoHistorico implements Serializable, IEntity {
 
 	private LocalDateTime dtModif;
 
+	private boolean catalogo;
+
 	@Override
 	public Long getId() {
 		return id;
@@ -56,6 +58,14 @@ public class PlanoHistorico implements Serializable, IEntity {
 
 	public void setDtModif(LocalDateTime dtModif) {
 		this.dtModif = dtModif;
+	}
+
+	public boolean isCatalogo() {
+		return catalogo;
+	}
+
+	public void setCatalogo(boolean catalogo) {
+		this.catalogo = catalogo;
 	}
 
 }

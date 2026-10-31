@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { createPlano, errorMessage, listPlanos } from '../api.ts';
-import type { Plano } from '../api.ts';
-import { filled, textOrDash } from '../format.ts';
-import { ErrorBanner, Field } from '../components/ui.tsx';
+import { addPreco, createPlano, errorMessage, listPlanos, listPrecos } from '../api.ts';
+import type { Plano, PlanoPreco } from '../api.ts';
+import { filled, formatDateTime, formatMoney, parseDecimal, textOrDash } from '../format.ts';
+import { ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
 
 export function PlanosPage() {
   const [planos, setPlanos] = useState<Plano[]>([]);
@@ -12,8 +12,12 @@ export function PlanosPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [precoInicial, setPrecoInicial] = useState('');
+  const [novoPreco, setNovoPreco] = useState('');
+  const [historico, setHistorico] = useState<PlanoPreco[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingPreco, setSavingPreco] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,6 +43,28 @@ export function PlanosPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (selectedId == null) {
+      setHistorico([]);
+      return;
+    }
+    let cancelled = false;
+    listPrecos(selectedId)
+      .then((data) => {
+        if (!cancelled) {
+          setHistorico(data);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setError(errorMessage(cause));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
   const needle = query.trim().toLowerCase();
   const visible = needle
     ? planos.filter((plano) => plano.nome.toLowerCase().includes(needle))
@@ -52,17 +78,24 @@ export function PlanosPage() {
       setError('Informe o nome do plano.');
       return;
     }
+    const preco = parseDecimal(precoInicial);
+    if (Number.isNaN(preco)) {
+      setError('Informe o preço com números, no formato 1.234,56.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       const created = await createPlano({
         nome: nomePlano,
         descricao: filled(descricao),
+        valor: preco,
       });
       setPlanos((current) => [...current, created]);
       setSelectedId(created.id);
       setNome('');
       setDescricao('');
+      setPrecoInicial('');
     } catch (cause: unknown) {
       setError(errorMessage(cause));
     } finally {
@@ -70,12 +103,47 @@ export function PlanosPage() {
     }
   }
 
+  async function onChangePrice(event: FormEvent) {
+    event.preventDefault();
+    if (selected == null) {
+      return;
+    }
+    const preco = parseDecimal(novoPreco);
+    if (preco === undefined || Number.isNaN(preco)) {
+      setError('Informe o novo preço com números, no formato 1.234,56.');
+      return;
+    }
+    setSavingPreco(true);
+    setError(null);
+    try {
+      const saved = await addPreco(selected.id, preco);
+      setHistorico((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+      setPlanos((current) =>
+        current.map((plano) => (plano.id === selected.id ? { ...plano, valor: saved.valor } : plano)),
+      );
+      setNovoPreco('');
+    } catch (cause: unknown) {
+      setError(errorMessage(cause));
+    } finally {
+      setSavingPreco(false);
+    }
+  }
+
+  const historicoVisivel = [...historico].sort((left, right) => {
+    if (left.dtModif === right.dtModif) {
+      return right.id - left.id;
+    }
+    return left.dtModif < right.dtModif ? 1 : -1;
+  });
+
   return (
     <div className="page">
       <header className="page-head">
         <div>
           <h1>Planos</h1>
-          <p className="lede">Catálogo da corretora. O plano criado entra na lista e no seletor da venda.</p>
+          <p className="lede">
+            Catálogo da corretora. O preço vigente entra na venda, e cada alteração fica no histórico.
+          </p>
         </div>
       </header>
       <ErrorBanner message={error} />
@@ -105,7 +173,11 @@ export function PlanosPage() {
                 onClick={() => setSelectedId(plano.id)}
               >
                 <h3>{plano.nome}</h3>
-                <p>{textOrDash(plano.descricao)}</p>
+                <p>
+                  {textOrDash(plano.descricao)}
+                  {' · '}
+                  {plano.valor == null ? 'Sem preço' : formatMoney(plano.valor)}
+                </p>
               </button>
             ))}
           </div>
@@ -120,6 +192,9 @@ export function PlanosPage() {
               <Field label="Descrição">
                 <textarea rows={3} value={descricao} onChange={(event) => setDescricao(event.target.value)} />
               </Field>
+              <Field label="Preço (R$)">
+                <MoneyInput value={precoInicial} onChange={setPrecoInicial} />
+              </Field>
               <div className="actions">
                 <button className="button" type="submit" disabled={saving}>
                   {saving ? 'Salvando…' : 'Criar plano'}
@@ -130,14 +205,49 @@ export function PlanosPage() {
           <section className="panel">
             <h2>Detalhe</h2>
             {selected ? (
-              <dl className="kv">
-                <dt>Nome</dt>
-                <dd>{selected.nome}</dd>
-                <dt>Descrição</dt>
-                <dd>{textOrDash(selected.descricao)}</dd>
-              </dl>
+              <div className="stack">
+                <dl className="kv">
+                  <dt>Nome</dt>
+                  <dd>{selected.nome}</dd>
+                  <dt>Descrição</dt>
+                  <dd>{textOrDash(selected.descricao)}</dd>
+                  <dt>Preço atual</dt>
+                  <dd>{formatMoney(selected.valor)}</dd>
+                </dl>
+                <form className="stack" noValidate onSubmit={onChangePrice}>
+                  <Field label="Novo preço (R$)">
+                    <MoneyInput value={novoPreco} onChange={setNovoPreco} />
+                  </Field>
+                  <div className="actions">
+                    <button className="button" type="submit" disabled={savingPreco}>
+                      {savingPreco ? 'Salvando…' : 'Registrar preço'}
+                    </button>
+                  </div>
+                </form>
+                <h3>Histórico de preços</h3>
+                {historicoVisivel.length === 0 ? (
+                  <p className="empty">Nenhum preço registrado.</p>
+                ) : (
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th className="num">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historicoVisivel.map((item) => (
+                        <tr key={item.id}>
+                          <td>{formatDateTime(item.dtModif)}</td>
+                          <td className="num">{formatMoney(item.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             ) : (
-              <p className="empty">Selecione um plano na lista. Não há edição.</p>
+              <p className="empty">Selecione um plano na lista.</p>
             )}
           </section>
         </div>

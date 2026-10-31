@@ -11,8 +11,8 @@ import {
   renewContrato,
 } from '../api.ts';
 import type { Contrato, Plano, Titular, Vendedor } from '../api.ts';
-import { filled, formatDateTime, formatMoney, labelOrId, parseDecimal, textOrDash, toApiDateTime } from '../format.ts';
-import { ErrorBanner, Field, StatusBadge } from '../components/ui.tsx';
+import { filled, formatDateTime, formatMoney, labelOrId, moneyInput, parseDecimal, textOrDash, toApiDateTime } from '../format.ts';
+import { ErrorBanner, Field, MoneyInput, StatusBadge } from '../components/ui.tsx';
 
 function parseId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) {
@@ -232,12 +232,11 @@ export function ContratoDetalhePage() {
                   />
                 </Field>
                 <Field label="Valor (R$)">
-                  <input
+                  <MoneyInput
                     value={valor}
                     disabled={!ativo}
-                    inputMode="decimal"
-                    placeholder={contrato.valor != null ? String(contrato.valor) : undefined}
-                    onChange={(event) => setValor(event.target.value)}
+                    placeholder={contrato.valor != null ? moneyInput(contrato.valor) : undefined}
+                    onChange={setValor}
                   />
                 </Field>
                 <Field label="Código">

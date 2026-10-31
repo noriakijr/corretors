@@ -146,6 +146,7 @@ public class ContratoService {
 		historico.setPlano(plano);
 		historico.setValor(valor);
 		historico.setDtModif(quando);
+		historico.setCatalogo(false);
 		return historicos.save(historico);
 	}
 
