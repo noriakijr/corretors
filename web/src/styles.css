@@ -1,24 +1,15 @@
 :root {
   color-scheme: light;
-  --ink: #1c1915;
-  --ink-soft: #4e473e;
-  --paper: #f4efe6;
-  --card: #fffdf8;
-  --line: #e4d9c8;
-  --line-strong: #cfc3b0;
-  --copper: #9d4324;
-  --copper-dark: #7a3118;
-  --sidebar: #241f1b;
-  --sidebar-text: #f6efe6;
-  --sidebar-muted: #b7ab9d;
-  --pine: #1b6842;
-  --pine-bg: #e4f3ea;
-  --sea: #1b4d84;
-  --sea-bg: #e6f0fa;
-  --stone: #5c564e;
-  --stone-bg: #eeeae4;
-  --rose: #8d2d2d;
-  --rose-bg: #f8e7e4;
+  --background: #f4f7f6;
+  --surface: #ffffff;
+  --text: #1c2b2a;
+  --text-secondary: #5c6f6c;
+  --primary: #0f6e6b;
+  --primary-hover: #0c5856;
+  --status-healthy: #1f8a70;
+  --status-warning: #c4a35a;
+  --status-closed: #8a9694;
+  --border: #d5e0dd;
   --serif: "Liberation Serif", "Nimbus Roman", Georgia, "Times New Roman", serif;
   --sans: "Liberation Sans", "Nimbus Sans", "Segoe UI", sans-serif;
 }
@@ -36,8 +27,8 @@ body,
 body {
   margin: 0;
   font-family: var(--sans);
-  color: var(--ink);
-  background: var(--paper);
+  color: var(--text);
+  background: var(--background);
   font-size: 15px;
   line-height: 1.45;
 }
@@ -50,8 +41,21 @@ textarea {
   color: inherit;
 }
 
+::placeholder {
+  color: var(--text-secondary);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 24%, var(--surface));
+  color: var(--text);
+}
+
 a {
-  color: var(--copper-dark);
+  color: var(--primary);
+}
+
+a:hover {
+  color: var(--primary-hover);
 }
 
 h1,
@@ -60,6 +64,7 @@ h3 {
   font-family: var(--serif);
   font-weight: 600;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 h1 {
@@ -79,8 +84,12 @@ h3 {
 }
 
 :focus-visible {
-  outline: 2px solid var(--copper);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+input[type='checkbox'] {
+  accent-color: var(--primary);
 }
 
 .shell {
@@ -91,8 +100,9 @@ h3 {
 .sidebar {
   width: 236px;
   flex: none;
-  background: var(--sidebar);
-  color: var(--sidebar-text);
+  background: var(--surface);
+  color: var(--text);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   padding: 22px 16px 18px;
@@ -108,11 +118,12 @@ h3 {
 .brand-mark {
   width: 36px;
   height: 36px;
-  border: 1px solid #e0b39f;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--surface);
   display: grid;
   place-items: center;
   font-family: var(--serif);
-  color: #f3c7b4;
   font-size: 20px;
 }
 
@@ -120,12 +131,13 @@ h3 {
   font-family: var(--serif);
   font-size: 22px;
   line-height: 1;
+  color: var(--text);
 }
 
 .brand-sub {
   display: block;
   margin-top: 4px;
-  color: var(--sidebar-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -138,25 +150,31 @@ h3 {
 }
 
 .nav-link {
-  color: var(--sidebar-text);
+  color: var(--text);
   text-decoration: none;
   padding: 9px 12px;
   border-radius: 8px;
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  color: var(--primary-hover);
 }
 
 .nav-link.active {
-  background: var(--copper);
-  color: white;
+  background: var(--primary);
+  color: var(--surface);
+}
+
+.nav-link.active:hover {
+  background: var(--primary-hover);
+  color: var(--surface);
 }
 
 .sidebar-meta {
   margin-top: auto;
   padding: 18px 8px 0;
-  color: var(--sidebar-muted);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -166,6 +184,7 @@ h3 {
   flex: 1;
   min-width: 0;
   overflow: auto;
+  background: var(--background);
 }
 
 .page {
@@ -186,7 +205,7 @@ h3 {
 
 .lede {
   margin: 8px 0 0;
-  color: var(--ink-soft);
+  color: var(--text-secondary);
   max-width: 68ch;
 }
 
@@ -199,8 +218,8 @@ h3 {
 }
 
 .panel {
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px 16px 18px;
 }
@@ -216,8 +235,9 @@ h3 {
 .field select,
 .field textarea {
   width: 100%;
-  background: white;
-  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px;
 }
@@ -235,7 +255,7 @@ h3 {
 
 .field span {
   font-size: 13px;
-  color: var(--ink-soft);
+  color: var(--text-secondary);
 }
 
 .form-grid {
@@ -259,6 +279,7 @@ h3 {
   display: flex;
   gap: 8px;
   align-items: flex-start;
+  color: var(--text);
 }
 
 .check input {
@@ -274,9 +295,9 @@ h3 {
 
 .button {
   appearance: none;
-  border: 1px solid var(--copper-dark);
-  background: var(--copper);
-  color: white;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--surface);
   text-decoration: none;
   border-radius: 8px;
   padding: 8px 14px;
@@ -286,14 +307,29 @@ h3 {
   justify-content: center;
 }
 
+.button:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: var(--surface);
+}
+
 .button.secondary {
-  background: transparent;
-  color: var(--ink);
-  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.button.secondary:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--primary);
+  color: var(--primary-hover);
 }
 
 .button:disabled {
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--status-closed) 35%, var(--surface));
+  border-color: var(--border);
+  color: var(--text-secondary);
+  opacity: 1;
   cursor: not-allowed;
 }
 
@@ -307,8 +343,9 @@ h3 {
 .list-button {
   text-align: left;
   width: 100%;
-  border: 1px solid var(--line);
-  background: white;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   border-radius: 10px;
   padding: 10px 12px;
   cursor: pointer;
@@ -316,12 +353,13 @@ h3 {
 
 .list-button p {
   margin: 4px 0 0;
-  color: var(--ink-soft);
+  color: var(--text-secondary);
 }
 
-.list-button.active {
-  border-color: var(--copper);
-  background: #fbf3ec;
+.list-button.active,
+.list-button:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
 }
 
 .name-list {
@@ -332,13 +370,14 @@ h3 {
 
 .name-list li {
   padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
 }
 
 .muted,
 .note,
 .empty {
-  color: var(--ink-soft);
+  color: var(--text-secondary);
 }
 
 .note,
@@ -350,16 +389,18 @@ h3 {
 .banner {
   padding: 10px 12px;
   border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .banner.error {
-  background: var(--rose-bg);
-  color: var(--rose);
+  background: color-mix(in srgb, var(--status-warning) 28%, var(--surface));
+  border-color: var(--status-warning);
 }
 
 .banner.ok {
-  background: var(--pine-bg);
-  color: var(--pine);
+  background: color-mix(in srgb, var(--status-healthy) 18%, var(--surface));
+  border-color: var(--status-healthy);
 }
 
 .table {
@@ -373,16 +414,17 @@ h3 {
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--text-secondary);
   font-weight: 650;
   padding: 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
 }
 
 .table td {
   padding: 10px 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
+  color: var(--text);
 }
 
 .table tr.clickable {
@@ -390,7 +432,7 @@ h3 {
 }
 
 .table tr.clickable:hover {
-  background: #fbf7f1;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
 }
 
 .num {
@@ -409,26 +451,23 @@ h3 {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 650;
+  color: var(--text);
 }
 
 .status.ATIVO {
-  background: var(--pine-bg);
-  color: var(--pine);
+  background: color-mix(in srgb, var(--status-healthy) 24%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--status-healthy);
 }
 
-.status.RENOVADO {
-  background: var(--sea-bg);
-  color: var(--sea);
-}
-
+.status.RENOVADO,
 .status.ENCERRADO {
-  background: var(--stone-bg);
-  color: var(--stone);
+  background: color-mix(in srgb, var(--status-closed) 28%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--status-closed);
 }
 
 .status.CANCELADO {
-  background: var(--rose-bg);
-  color: var(--rose);
+  background: color-mix(in srgb, var(--status-warning) 32%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--status-warning);
 }
 
 .kv {
@@ -439,11 +478,12 @@ h3 {
 }
 
 .kv dt {
-  color: var(--ink-soft);
+  color: var(--text-secondary);
 }
 
 .kv dd {
   margin: 0;
+  color: var(--text);
 }
 
 .inline-create {
@@ -460,6 +500,8 @@ h3 {
 
   .sidebar {
     width: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 
   .nav {
