@@ -1,12 +1,12 @@
 # Corretors
 
-API Spring Boot e aplicativo React Native para o domínio da corretora: Titular (cliente), Dependente, Vendedor, Usuario, Contato, Endereco, Plano, PlanoHistorico, Pagamento, Parcela e Contrato.
+API Spring Boot, aplicativo React Native e interface web para o domínio da corretora: Titular (cliente), Dependente, Vendedor, Usuario, Contato, Endereco, Plano, PlanoHistorico, Pagamento, Parcela e Contrato.
 
 O app de 2016 era um WAR JSF/PrimeFaces em Maven e apontava para MySQL `fj21` com a senha de `root` vazia. Esse banco não sobe com o projeto. A API agora usa H2 em memória: `./gradlew bootRun` não precisa de MySQL.
 
 ## Versões
 
-Conferidas em 25 de outubro de 2026.
+Conferidas em 25 de outubro de 2026. A interface web, em 31 de outubro de 2026.
 
 | Peça | Versão |
 | --- | --- |
@@ -23,8 +23,11 @@ Conferidas em 25 de outubro de 2026.
 | React | 19.3.0 |
 | Expo | 58.0.19 (SDK 58, toolchain do React Native 0.88) |
 | expo-status-bar | 58.0.4 |
-| TypeScript | 6.0.3 |
+| TypeScript | 6.0.3 no app; 5.9.3 na interface web |
 | @types/react | 19.3.0 |
+| Vite | 7.3.7 |
+| React (web) | 19.3.1 |
+| React Router | 7.18.5 |
 
 Expo entra só como toolchain (`expo start` e `expo export`). A interface é React Native (`View`, `Text`, `TextInput`, `Pressable`), não um site.
 
@@ -58,6 +61,8 @@ Testes, inclusive a carga do contexto Spring:
 | --- | --- | --- |
 | GET | `/api/planos` | lista planos (`id`, `nome`, `descricao`) |
 | POST | `/api/planos` | cria plano. `nome` é obrigatório |
+| GET | `/api/vendedores` | lista vendedores (`id`, `nome`) |
+| POST | `/api/vendedores` | cria vendedor. `nome` é obrigatório |
 | GET | `/api/titulares` | lista titulares, com Contato e Endereco |
 | POST | `/api/titulares` | cria titular. `nome` é obrigatório |
 | GET | `/api/titulares/{id}/contratos` | lista contratos do titular (vigência e status) |
@@ -74,6 +79,10 @@ curl -s -X POST http://localhost:8080/api/planos \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Plano Essencial","descricao":"Cobertura basica"}'
 
+curl -s -X POST http://localhost:8080/api/vendedores \
+  -H 'Content-Type: application/json' \
+  -d '{"nome":"Marina Alves"}'
+
 curl -s -X POST http://localhost:8080/api/titulares \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Ana Souza","cpf":"12345678901","contato":{"celular":"31999998888","endereco":{"cidade":"Belo Horizonte"}}}'
@@ -87,7 +96,43 @@ curl -s -X POST http://localhost:8080/api/contratos/1/renovar \
   -d '{"valor":210.0}'
 ```
 
-`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava `PlanoHistorico`). Vendedor ainda não tem endpoint próprio: cadastre via H2/console ou testes. As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI` e `CRED`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
+`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava `PlanoHistorico`). O `vendedorId` vem de `GET` / `POST /api/vendedores` (`nome` obrigatório). As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI` e `CRED`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
+
+Não há listagem global de contratos: o contrato se alcança por `GET /api/titulares/{id}/contratos` e o detalhe por `GET /api/contratos/{id}`.
+
+## Interface web
+
+Desktop da corretora, em `web/`. Vite + React + TypeScript. Fala com a mesma API; não substitui o app em `mobile/` e não pede login.
+
+Em um terminal, a API:
+
+```bash
+./gradlew bootRun
+```
+
+Em outro, a interface (porta 5173):
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+Abra `http://localhost:5173`. O padrão de `VITE_API_URL` é `http://localhost:8080`. Para outro endereço:
+
+```bash
+cd web
+VITE_API_URL=http://127.0.0.1:8080 npm run dev
+```
+
+A barra tem Planos, Titulares e Vendedores. Contrato não tem lista própria: fica na ficha do titular (`/titulares/:id`), a venda em `/titulares/:id/contratos/novo` e o detalhe com renovação em `/contratos/:id`. Na venda, o vendedor é um seletor (com cadastro rápido do nome); também dá para cadastrar em Vendedores.
+
+Checagem de tipo e build estático (`web/dist` não entra no git):
+
+```bash
+cd web
+npm run build
+```
 
 ## Aplicativo
 
