@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { createTitular, errorMessage } from '../api.ts';
 import type { ContatoInput, EnderecoInput } from '../api.ts';
 import { filled } from '../format.ts';
-import { ErrorBanner, Field } from '../components/ui.tsx';
+import { DigitsInput, ErrorBanner, Field } from '../components/ui.tsx';
 
 type FormState = {
   nome: string;
@@ -96,6 +96,12 @@ export function TitularNovoPage() {
     };
   }
 
+  function setDigits(key: 'cpf' | 'telFixo' | 'telComercial' | 'telFax' | 'celular' | 'numero') {
+    return (value: string) => {
+      setForm((current) => ({ ...current, [key]: value }));
+    };
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     const nome = filled(form.nome);
@@ -142,7 +148,7 @@ export function TitularNovoPage() {
             <input value={form.nome} onChange={setText('nome')} autoComplete="name" />
           </Field>
           <Field label="CPF">
-            <input value={form.cpf} onChange={setText('cpf')} autoComplete="off" />
+            <DigitsInput value={form.cpf} onChange={setDigits('cpf')} />
           </Field>
           <Field label="RG">
             <input value={form.rg} onChange={setText('rg')} autoComplete="off" />
@@ -174,16 +180,16 @@ export function TitularNovoPage() {
         <h2>Contato</h2>
         <div className="form-grid">
           <Field label="Telefone fixo">
-            <input value={form.telFixo} onChange={setText('telFixo')} autoComplete="tel" />
+            <DigitsInput value={form.telFixo} onChange={setDigits('telFixo')} />
           </Field>
           <Field label="Telefone comercial">
-            <input value={form.telComercial} onChange={setText('telComercial')} />
+            <DigitsInput value={form.telComercial} onChange={setDigits('telComercial')} />
           </Field>
           <Field label="Fax">
-            <input value={form.telFax} onChange={setText('telFax')} />
+            <DigitsInput value={form.telFax} onChange={setDigits('telFax')} />
           </Field>
           <Field label="Celular">
-            <input value={form.celular} onChange={setText('celular')} autoComplete="tel" />
+            <DigitsInput value={form.celular} onChange={setDigits('celular')} />
           </Field>
           <Field label="E-mail" wide>
             <input type="email" value={form.email} onChange={setText('email')} autoComplete="email" />
@@ -207,7 +213,7 @@ export function TitularNovoPage() {
             <input value={form.rua} onChange={setText('rua')} />
           </Field>
           <Field label="Número">
-            <input value={form.numero} onChange={setText('numero')} />
+            <DigitsInput value={form.numero} onChange={setDigits('numero')} />
           </Field>
         </div>
         <div className="actions">
