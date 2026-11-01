@@ -10,6 +10,7 @@ public record EnderecoResponse(
 		String bairro,
 		String rua,
 		String numero,
+		String cep,
 		String latitude,
 		String longitude) {
 
@@ -25,6 +26,7 @@ public record EnderecoResponse(
 				endereco.getBairro(),
 				endereco.getRua(),
 				endereco.getNumero(),
+				endereco.getCep(),
 				endereco.getLatitude(),
 				endereco.getLongitude());
 	}

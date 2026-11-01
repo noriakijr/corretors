@@ -73,7 +73,8 @@ class PlanoTitularApiTest {
 										"cidade", "Belo Horizonte",
 										"bairro", "Centro",
 										"rua", "Afonso Pena",
-										"numero", "100"))))
+										"numero", "100",
+										"cep", "30130-010"))))
 				.retrieve()
 				.body(new ParameterizedTypeReference<>() {
 				});
@@ -94,10 +95,36 @@ class PlanoTitularApiTest {
 		Map<String, Object> endereco = (Map<String, Object>) contato.get("endereco");
 		assertThat(endereco.get("cidade")).isEqualTo("Belo Horizonte");
 		assertThat(endereco.get("rua")).isEqualTo("Afonso Pena");
+		assertThat(endereco.get("cep")).isEqualTo("30130010");
 
 		List<Map<String, Object>> after = list("/api/titulares");
 		assertThat(after).hasSize(before.size() + 1);
 		assertThat(after).anySatisfy(titular -> assertThat(titular.get("nome")).isEqualTo("Ana Souza"));
+	}
+
+	@Test
+	void storesMaskedCpfAndPhoneAsDigits() {
+		Map<String, Object> created = client.post()
+				.uri("/api/titulares")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"nome", "Titular Mascara",
+						"cpf", "111.111.111-11",
+						"rg", "222.222.222-22",
+						"contato", Map.of(
+								"celular", "(31) 99999-8888",
+								"telFixo", "(31) 3333-4444")))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+
+		assertThat(created).isNotNull();
+		assertThat(created.get("cpf")).isEqualTo("11111111111");
+		assertThat(created.get("rg")).isEqualTo("22222222222");
+		@SuppressWarnings("unchecked")
+		Map<String, Object> contato = (Map<String, Object>) created.get("contato");
+		assertThat(contato.get("celular")).isEqualTo("31999998888");
+		assertThat(contato.get("telFixo")).isEqualTo("3133334444");
 	}
 
 	@Test

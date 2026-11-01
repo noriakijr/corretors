@@ -7,6 +7,7 @@ public record EnderecoRequest(
 		String bairro,
 		String rua,
 		String numero,
+		String cep,
 		String latitude,
 		String longitude) {
 }
