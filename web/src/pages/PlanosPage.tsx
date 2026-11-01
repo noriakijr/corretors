@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { Link, useParams } from 'react-router-dom';
 
-import { addPreco, createPlano, errorMessage, listPlanos, listPrecos } from '../api.ts';
+import { addPreco, createPlano, errorMessage, getSeguradora, listPlanosDaSeguradora, listPrecos } from '../api.ts';
 import type { Plano, PlanoPreco } from '../api.ts';
 import { filled, formatDateTime, formatMoney, parseDecimal, textOrDash } from '../format.ts';
 import { ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
 
 export function PlanosPage() {
+  const params = useParams();
+  const seguradoraId = params.id && /^\d+$/.test(params.id) ? Number(params.id) : null;
+  const [seguradoraNome, setSeguradoraNome] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
   const [planos, setPlanos] = useState<Plano[]>([]);
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -24,8 +29,39 @@ export function PlanosPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (seguradoraId == null) {
+      setLoading(false);
+      setMissing(true);
+      setSeguradoraNome(null);
+      setPlanos([]);
+      setSelectedId(null);
+      setHistorico([]);
+      setNovoPreco('');
+      setNovaRenovacao('');
+      return;
+    }
     let cancelled = false;
-    listPlanos()
+    setLoading(true);
+    setMissing(false);
+    setSeguradoraNome(null);
+    setPlanos([]);
+    setSelectedId(null);
+    setHistorico([]);
+    setNovoPreco('');
+    setNovaRenovacao('');
+    getSeguradora(seguradoraId)
+      .then((data) => {
+        if (!cancelled) {
+          setSeguradoraNome(data.nome);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setMissing(true);
+          setError(errorMessage(cause));
+        }
+      });
+    listPlanosDaSeguradora(seguradoraId)
       .then((data) => {
         if (!cancelled) {
           setPlanos(data);
@@ -44,7 +80,7 @@ export function PlanosPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [seguradoraId]);
 
   useEffect(() => {
     if (selectedId == null) {
@@ -91,10 +127,13 @@ export function PlanosPage() {
       setError('Informe o preço de renovação com números, no formato 1.234,56, ou deixe em branco.');
       return;
     }
+    if (seguradoraId == null) {
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      const created = await createPlano({
+      const created = await createPlano(seguradoraId, {
         nome: nomePlano,
         descricao: filled(descricao),
         valor: preco,
@@ -178,13 +217,18 @@ export function PlanosPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Planos</h1>
+          <h1>{loading ? 'Carregando…' : (seguradoraNome ?? 'Seguradora')}</h1>
           <p className="lede">
-            Catálogo da corretora. O preço vigente entra na venda. O preço de renovação é opcional e também fica no histórico.
+            Planos desta seguradora. O preço vigente entra na venda. O preço de renovação é opcional e também fica no
+            histórico.
           </p>
         </div>
+        <Link className="button secondary" to="/seguradoras">
+          Seguradoras
+        </Link>
       </header>
       <ErrorBanner message={error} />
+      {!loading && missing ? <p className="empty">Seguradora não encontrada.</p> : null}
       <div className="split">
         <section className="panel">
           <h2>Lista</h2>
@@ -246,7 +290,9 @@ export function PlanosPage() {
           </section>
           <section className="panel">
             <h2>Detalhe</h2>
-            {selected ? (
+            {loading ? (
+              <p className="muted">Carregando…</p>
+            ) : selected ? (
               <div className="stack">
                 <dl className="kv">
                   <dt>Nome</dt>

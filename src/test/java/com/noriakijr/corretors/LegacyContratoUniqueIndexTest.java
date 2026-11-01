@@ -29,6 +29,7 @@ import com.noriakijr.corretors.model.ContratoStatus;
 import com.noriakijr.corretors.model.Endereco;
 import com.noriakijr.corretors.model.Pagamento;
 import com.noriakijr.corretors.model.Plano;
+import com.noriakijr.corretors.model.Seguradora;
 import com.noriakijr.corretors.model.PlanoHistorico;
 import com.noriakijr.corretors.model.Titular;
 import com.noriakijr.corretors.model.Vendedor;
@@ -160,6 +161,7 @@ class LegacyContratoUniqueIndexTest {
 				.addAnnotatedClass(Contato.class)
 				.addAnnotatedClass(Endereco.class)
 				.addAnnotatedClass(Plano.class)
+				.addAnnotatedClass(Seguradora.class)
 				.addAnnotatedClass(PlanoHistorico.class)
 				.addAnnotatedClass(Pagamento.class)
 				.buildMetadata()

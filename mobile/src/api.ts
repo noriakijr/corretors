@@ -135,12 +135,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+export type Seguradora = {
+  id: number;
+  nome: string;
+};
+
 export function listPlanos(): Promise<Plano[]> {
   return request<Plano[]>('/api/planos');
 }
 
-export function createPlano(input: PlanoInput): Promise<Plano> {
-  return request<Plano>('/api/planos', {
+export function listSeguradoras(): Promise<Seguradora[]> {
+  return request<Seguradora[]>('/api/seguradoras');
+}
+
+export function createSeguradora(nome: string): Promise<{ id: number; nome: string }> {
+  return request<{ id: number; nome: string }>('/api/seguradoras', {
+    method: 'POST',
+    body: JSON.stringify({ nome }),
+  });
+}
+
+export function createPlano(seguradoraId: number, input: PlanoInput): Promise<Plano> {
+  return request<Plano>(`/api/seguradoras/${seguradoraId}/planos`, {
     method: 'POST',
     body: JSON.stringify(input),
   });

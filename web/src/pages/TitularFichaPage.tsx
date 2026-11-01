@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { errorMessage, listContratosByTitular, listPlanos, listTitulares } from '../api.ts';
 import type { Contrato, Plano, Titular } from '../api.ts';
-import { formatCep, formatDate, formatDateTime, formatDocumento, formatMoney, formatPhone, labelOrId, textOrDash, yesNo } from '../format.ts';
+import { formatCep, formatDate, formatDateTime, formatDocumento, formatMoney, formatPhone, planoRotulo, textOrDash, yesNo } from '../format.ts';
 import { ErrorBanner, OkBanner, StatusBadge } from '../components/ui.tsx';
 
 function parseId(value: string | undefined): number | null {
@@ -191,7 +191,7 @@ export function TitularFichaPage() {
                         <td>
                           <StatusBadge status={contrato.status} />
                         </td>
-                        <td>{labelOrId(plano?.nome, contrato.planoId, 'Plano')}</td>
+                        <td>{planoRotulo(plano?.nome, plano?.seguradoraNome, contrato.planoId)}</td>
                         <td className="num">{formatMoney(contrato.valor)}</td>
                         <td>{formatDateTime(contrato.dtInicio)}</td>
                         <td>{formatDateTime(contrato.dtFim)}</td>

@@ -4,6 +4,7 @@ import { Layout } from './components/Layout.tsx';
 import { ContratoDetalhePage } from './pages/ContratoDetalhePage.tsx';
 import { ContratoNovoPage } from './pages/ContratoNovoPage.tsx';
 import { PlanosPage } from './pages/PlanosPage.tsx';
+import { SeguradorasPage } from './pages/SeguradorasPage.tsx';
 import { TitularFichaPage } from './pages/TitularFichaPage.tsx';
 import { TitularNovoPage } from './pages/TitularNovoPage.tsx';
 import { TitularesPage } from './pages/TitularesPage.tsx';
@@ -14,8 +15,10 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/planos" replace />} />
-          <Route path="planos" element={<PlanosPage />} />
+          <Route index element={<Navigate to="/seguradoras" replace />} />
+          <Route path="planos" element={<Navigate to="/seguradoras" replace />} />
+          <Route path="seguradoras" element={<SeguradorasPage />} />
+          <Route path="seguradoras/:id" element={<PlanosPage />} />
           <Route path="titulares" element={<TitularesPage />} />
           <Route path="titulares/novo" element={<TitularNovoPage />} />
           <Route path="titulares/:id" element={<TitularFichaPage />} />

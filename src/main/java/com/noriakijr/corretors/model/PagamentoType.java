@@ -4,5 +4,6 @@ public enum PagamentoType {
 	DINHEIRO,
 	CHEQUE,
 	CARTAO_DEBITO,
-	CARTAO_CREDITO
+	CARTAO_CREDITO,
+	PIX
 }

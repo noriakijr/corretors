@@ -233,6 +233,18 @@ export function textOrDash(value: string | null | undefined): string {
   return value;
 }
 
+export function planoRotulo(
+  nome: string | null | undefined,
+  seguradora: string | null | undefined,
+  id: number | null | undefined,
+): string {
+  const base = labelOrId(nome, id, 'Plano');
+  if (seguradora && seguradora.trim().length > 0) {
+    return `${base} — ${seguradora.trim()}`;
+  }
+  return base;
+}
+
 export function labelOrId(nome: string | null | undefined, id: number | null | undefined, kind: string): string {
   if (nome && nome.trim().length > 0) {
     return id == null ? nome : `${nome} (${id})`;

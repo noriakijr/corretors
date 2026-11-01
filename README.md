@@ -59,8 +59,11 @@ Testes, inclusive a carga do contexto Spring:
 
 | Método | Caminho | Uso |
 | --- | --- | --- |
-| GET | `/api/planos` | lista planos (`id`, `nome`, `descricao`, `valor` vigente, `valorRenovacao` opcional) |
-| POST | `/api/planos` | cria plano. `nome` é obrigatório. `valor` e `valorRenovacao` são opcionais |
+| GET | `/api/seguradoras` | lista seguradoras (`id`, `nome`) |
+| POST | `/api/seguradoras` | cria seguradora. `nome` é obrigatório |
+| GET | `/api/seguradoras/{id}/planos` | planos dessa seguradora |
+| POST | `/api/seguradoras/{id}/planos` | cria plano da seguradora. `nome` é obrigatório. `valor` e `valorRenovacao` são opcionais |
+| GET | `/api/planos` | lista todos os planos, com `seguradoraId`, `seguradoraNome`, `valor` vigente e `valorRenovacao` opcional |
 | GET | `/api/planos/{id}/precos` | histórico de preço e de renovação, o mais novo primeiro (`valor`, `dtModif`, `renovacao`) |
 | POST | `/api/planos/{id}/precos` | registra um preço. `renovacao: true` grava o preço de renovação. O snapshot da venda não entra nesse histórico |
 | GET | `/api/vendedores` | lista vendedores (`id`, `nome`) |
@@ -77,7 +80,11 @@ Um titular pode ter vários contratos `ATIVO` ao mesmo tempo (ex.: saúde + vida
 Exemplo:
 
 ```bash
-curl -s -X POST http://localhost:8080/api/planos \
+curl -s -X POST http://localhost:8080/api/seguradoras \
+  -H 'Content-Type: application/json' \
+  -d '{"nome":"Porto Seguro"}'
+
+curl -s -X POST http://localhost:8080/api/seguradoras/1/planos \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Plano Essencial","descricao":"Cobertura basica"}'
 
@@ -98,7 +105,7 @@ curl -s -X POST http://localhost:8080/api/contratos/1/renovar \
   -d '{"valor":210.0}'
 ```
 
-`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava um snapshot em `PlanoHistorico`, separado do histórico de catálogo). O preço vigente do plano é o último `POST /api/planos/{id}/precos`. O `vendedorId` vem de `GET` / `POST /api/vendedores` (`nome` obrigatório). As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI` e `CRED`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
+`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava o total com desconto no snapshot de `PlanoHistorico`, separado do histórico de catálogo). O desconto não pode passar do valor. `quantidadeParcelas` a partir de 2 grava essa quantidade e as linhas de `Parcela`; sem o campo, a venda fica à vista, um único pagamento. O preço vigente do plano é o último `POST /api/planos/{id}/precos`. O `vendedorId` vem de `GET` / `POST /api/vendedores` (`nome` obrigatório). As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI`, `CRED` e `PIX`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
 
 Não há listagem global de contratos: o contrato se alcança por `GET /api/titulares/{id}/contratos` e o detalhe por `GET /api/contratos/{id}`.
 
@@ -127,7 +134,7 @@ cd web
 VITE_API_URL=http://127.0.0.1:8080 npm run dev
 ```
 
-A barra tem Planos, Titulares e Vendedores. Contrato não tem lista própria: fica na ficha do titular (`/titulares/:id`), a venda em `/titulares/:id/contratos/novo` e o detalhe com renovação em `/contratos/:id`. Na venda, o vendedor é um seletor (com cadastro rápido do nome); também dá para cadastrar em Vendedores.
+A barra tem Seguradoras, Titulares e Vendedores. O plano se cadastra na página da seguradora (`/seguradoras/:id`). Contrato não tem lista própria: fica na ficha do titular (`/titulares/:id`), a venda em `/titulares/:id/contratos/novo` e o detalhe com renovação em `/contratos/:id`. Na venda, o vendedor é um seletor (com cadastro rápido do nome); também dá para cadastrar em Vendedores.
 
 Checagem de tipo e build estático (`web/dist` não entra no git):
 
@@ -152,7 +159,7 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:8080 npm start
 
 No simulador iOS, `http://localhost:8080` serve. Em um aparelho físico, use o IP da máquina na rede.
 
-A tela lista e cria planos e titulares, e lista os contratos do titular selecionado com botão **Renovar** (`POST /api/contratos/{id}/renovar`). Ao abrir, chama `GET /api/planos` e `GET /api/titulares`; ao escolher um titular, chama `GET /api/titulares/{id}/contratos`.
+A tela lista seguradoras, planos e titulares, e lista os contratos do titular selecionado com botão **Renovar** (`POST /api/contratos/{id}/renovar`). O plano usa a seguradora selecionada; criar um plano não cadastra outra seguradora. Ao abrir, chama `GET /api/planos`, `GET /api/seguradoras` e `GET /api/titulares`; ao escolher um titular, chama `GET /api/titulares/{id}/contratos`.
 
 Sem emulador, o cliente HTTP da mesma tela pode falar com a API que já está no ar:
 

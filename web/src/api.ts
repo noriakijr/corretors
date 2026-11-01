@@ -4,6 +4,13 @@ export type Plano = {
   descricao: string | null;
   valor: number | null;
   valorRenovacao: number | null;
+  seguradoraId: number | null;
+  seguradoraNome: string | null;
+};
+
+export type Seguradora = {
+  id: number;
+  nome: string;
 };
 
 export type PlanoInput = {
@@ -94,7 +101,7 @@ export type VendedorInput = {
 
 export type ContratoStatus = 'ATIVO' | 'ENCERRADO' | 'RENOVADO' | 'CANCELADO';
 
-export type PagamentoType = 'DINHEIRO' | 'CHEQUE' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO';
+export type PagamentoType = 'DINHEIRO' | 'CHEQUE' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'PIX';
 
 export type Contrato = {
   id: number;
@@ -126,6 +133,7 @@ export type ContratoInput = {
   pagamentoDescricao?: string;
   tipoPag?: PagamentoType;
   vlrDesconto?: number;
+  quantidadeParcelas?: number;
 };
 
 export type RenovarContratoInput = {
@@ -207,8 +215,27 @@ export function listPlanos(): Promise<Plano[]> {
   return request<Plano[]>('/api/planos');
 }
 
-export function createPlano(input: PlanoInput): Promise<Plano> {
-  return request<Plano>('/api/planos', {
+export function listSeguradoras(): Promise<Seguradora[]> {
+  return request<Seguradora[]>('/api/seguradoras');
+}
+
+export function getSeguradora(id: number): Promise<Seguradora> {
+  return request<Seguradora>(`/api/seguradoras/${id}`);
+}
+
+export function createSeguradora(nome: string): Promise<Seguradora> {
+  return request<Seguradora>('/api/seguradoras', {
+    method: 'POST',
+    body: JSON.stringify({ nome }),
+  });
+}
+
+export function listPlanosDaSeguradora(seguradoraId: number): Promise<Plano[]> {
+  return request<Plano[]>(`/api/seguradoras/${seguradoraId}/planos`);
+}
+
+export function createPlano(seguradoraId: number, input: PlanoInput): Promise<Plano> {
+  return request<Plano>(`/api/seguradoras/${seguradoraId}/planos`, {
     method: 'POST',
     body: JSON.stringify(input),
   });
