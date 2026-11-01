@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.noriakijr.corretors.model.PagamentoType;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 public record ContratoRequest(
@@ -18,5 +19,6 @@ public record ContratoRequest(
 		LocalDateTime dtFim,
 		String pagamentoDescricao,
 		PagamentoType tipoPag,
-		Double vlrDesconto) {
+		Double vlrDesconto,
+		@Min(1) Integer quantidadeParcelas) {
 }

@@ -12,12 +12,14 @@ import com.noriakijr.corretors.model.Contrato;
 import com.noriakijr.corretors.model.ContratoStatus;
 import com.noriakijr.corretors.model.Pagamento;
 import com.noriakijr.corretors.model.PagamentoType;
+import com.noriakijr.corretors.model.Parcela;
 import com.noriakijr.corretors.model.Plano;
 import com.noriakijr.corretors.model.PlanoHistorico;
 import com.noriakijr.corretors.model.Titular;
 import com.noriakijr.corretors.model.Vendedor;
 import com.noriakijr.corretors.repository.ContratoRepository;
 import com.noriakijr.corretors.repository.PagamentoRepository;
+import com.noriakijr.corretors.repository.ParcelaRepository;
 import com.noriakijr.corretors.repository.PlanoHistoricoRepository;
 import com.noriakijr.corretors.repository.PlanoRepository;
 import com.noriakijr.corretors.repository.TitularRepository;
@@ -35,6 +37,7 @@ public class ContratoService {
 	private final PlanoRepository planos;
 	private final PlanoHistoricoRepository historicos;
 	private final PagamentoRepository pagamentos;
+	private final ParcelaRepository parcelas;
 
 	public ContratoService(
 			ContratoRepository contratos,
@@ -42,13 +45,15 @@ public class ContratoService {
 			VendedorRepository vendedores,
 			PlanoRepository planos,
 			PlanoHistoricoRepository historicos,
-			PagamentoRepository pagamentos) {
+			PagamentoRepository pagamentos,
+			ParcelaRepository parcelas) {
 		this.contratos = contratos;
 		this.titulares = titulares;
 		this.vendedores = vendedores;
 		this.planos = planos;
 		this.historicos = historicos;
 		this.pagamentos = pagamentos;
+		this.parcelas = parcelas;
 	}
 
 	@Transactional(readOnly = true)
@@ -74,13 +79,20 @@ public class ContratoService {
 		LocalDateTime dtAquisicao = request.dtAquisicao() != null ? request.dtAquisicao() : agora;
 		LocalDateTime dtInicio = request.dtInicio() != null ? request.dtInicio() : dtAquisicao;
 		LocalDateTime dtFim = request.dtFim() != null ? request.dtFim() : dtInicio.plusYears(1);
+		double liquido = liquido(request.valor(), request.vlrDesconto());
+		int quantidade = quantidade(request.quantidadeParcelas());
 
-		PlanoHistorico historico = snapshot(plano, request.valor(), agora);
+		PlanoHistorico historico = snapshot(plano, (float) liquido, agora);
 		Pagamento pagamento = createPagamento(
 				request.pagamentoDescricao() != null ? request.pagamentoDescricao() : "Aquisicao",
 				request.tipoPag() != null ? request.tipoPag() : PagamentoType.DINHEIRO,
 				request.valor().doubleValue(),
-				request.vlrDesconto());
+				request.vlrDesconto() != null ? request.vlrDesconto() : 0.0,
+				liquido,
+				quantidade);
+		if (quantidade > 1) {
+			createParcelas(pagamento, quantidade, dtInicio, liquido);
+		}
 
 		Contrato contrato = new Contrato();
 		contrato.setCodigo(request.codigo());
@@ -121,7 +133,7 @@ public class ContratoService {
 		LocalDateTime dtFim = body.dtFim() != null ? body.dtFim() : dtInicio.plusYears(1);
 
 		PlanoHistorico historico = snapshot(anterior.getPlanoHistorico().getPlano(), valor, agora);
-		Pagamento pagamento = createPagamento("Renovacao", PagamentoType.DINHEIRO, valor, 0.0);
+		Pagamento pagamento = createPagamento("Renovacao", PagamentoType.DINHEIRO, valor, 0.0, valor, 1);
 
 		Contrato renovado = new Contrato();
 		renovado.setCodigo(body.codigo() != null ? body.codigo() : nextCodigo(anterior.getCodigo()));
@@ -151,15 +163,56 @@ public class ContratoService {
 		return historicos.save(historico);
 	}
 
-	private Pagamento createPagamento(String descricao, PagamentoType tipo, double valor, Double desconto) {
-		double vlrDesconto = desconto != null ? desconto : 0.0;
+	private Pagamento createPagamento(
+			String descricao,
+			PagamentoType tipo,
+			double bruto,
+			double desconto,
+			double liquido,
+			int quantidade) {
 		Pagamento pagamento = new Pagamento();
 		pagamento.setDescricao(descricao);
 		pagamento.setTipoPag(tipo);
-		pagamento.setVlrBruto(valor);
-		pagamento.setVlrDesconto(vlrDesconto);
-		pagamento.setVlrLiquido(valor - vlrDesconto);
+		pagamento.setVlrBruto(bruto);
+		pagamento.setVlrDesconto(desconto);
+		pagamento.setVlrLiquido(liquido);
+		pagamento.setQuantidade(quantidade);
 		return pagamentos.save(pagamento);
+	}
+
+	private void createParcelas(Pagamento pagamento, int quantidade, LocalDateTime inicio, double liquido) {
+		long cents = Math.round(liquido * 100.0);
+		long base = cents / quantidade;
+		long remainder = cents % quantidade;
+		for (int index = 0; index < quantidade; index++) {
+			long parcelaCents = base + (index == quantidade - 1 ? remainder : 0);
+			Parcela parcela = new Parcela();
+			parcela.setVlrParcela(parcelaCents / 100.0);
+			parcela.setDtParcela(inicio.plusMonths(index));
+			parcela.setPagamento(pagamento);
+			parcelas.save(parcela);
+		}
+	}
+
+	private static double liquido(float valor, Double desconto) {
+		long brutoCents = Math.round((double) valor * 100.0);
+		long descontoCents = desconto == null ? 0 : Math.round(desconto * 100.0);
+		if (descontoCents < 0 || descontoCents > brutoCents) {
+			throw new ResponseStatusException(
+					HttpStatus.BAD_REQUEST,
+					"desconto nao pode ser maior que o valor");
+		}
+		return (brutoCents - descontoCents) / 100.0;
+	}
+
+	private static int quantidade(Integer quantidadeParcelas) {
+		if (quantidadeParcelas == null) {
+			return 1;
+		}
+		if (quantidadeParcelas < 1) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "quantidade de parcelas invalida");
+		}
+		return quantidadeParcelas;
 	}
 
 	private Contrato requireContrato(Long id) {

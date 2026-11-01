@@ -18,10 +18,12 @@ import org.springframework.web.client.RestClient;
 import com.noriakijr.corretors.model.Contrato;
 import com.noriakijr.corretors.model.ContratoStatus;
 import com.noriakijr.corretors.model.PagamentoType;
+import com.noriakijr.corretors.model.Parcela;
 import com.noriakijr.corretors.model.Plano;
 import com.noriakijr.corretors.model.Titular;
 import com.noriakijr.corretors.model.Vendedor;
 import com.noriakijr.corretors.repository.ContratoRepository;
+import com.noriakijr.corretors.repository.ParcelaRepository;
 import com.noriakijr.corretors.repository.PlanoRepository;
 import com.noriakijr.corretors.repository.TitularRepository;
 import com.noriakijr.corretors.repository.VendedorRepository;
@@ -43,6 +45,9 @@ class ContratoApiTest {
 
 	@Autowired
 	private ContratoRepository contratos;
+
+	@Autowired
+	private ParcelaRepository parcelas;
 
 	private RestClient client;
 	private Titular titular;
@@ -170,6 +175,95 @@ class ContratoApiTest {
 		assertThat(response.getStatusCode().value()).isEqualTo(400);
 		assertThat(response.getBody()).isNotNull();
 		assertThat(response.getBody().get("message")).contains("ATIVO");
+	}
+
+	@Test
+	void persistsDiscountedTotalAndRejectsALargerDiscount() {
+		Map<String, Object> created = client.post()
+				.uri("/api/contratos")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"titularId", titular.getId(),
+						"vendedorId", vendedor.getId(),
+						"planoId", planoSaude.getId(),
+						"valor", 200f,
+						"vlrDesconto", 50d,
+						"codigo", "CT-DESC",
+						"dtInicio", "2026-06-01T00:00:00",
+						"dtFim", "2027-06-01T00:00:00"))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+
+		assertThat(created).isNotNull();
+		assertThat(((Number) created.get("valor")).floatValue()).isEqualTo(150f);
+		Contrato stored = contratos.findById(((Number) created.get("id")).longValue()).orElseThrow();
+		assertThat(stored.getPlanoHistorico().getValor()).isEqualTo(150f);
+		assertThat(stored.getPagamento().getVlrBruto()).isEqualTo(200d);
+		assertThat(stored.getPagamento().getVlrDesconto()).isEqualTo(50d);
+		assertThat(stored.getPagamento().getVlrLiquido()).isEqualTo(150d);
+		assertThat(stored.getPagamento().getQuantidade()).isEqualTo(1);
+		assertThat(parcelas.findByPagamentoIdOrderByDtParcelaAscIdAsc(stored.getPagamento().getId())).isEmpty();
+
+		Map<String, Object> renewed = client.post()
+				.uri("/api/contratos/" + stored.getId() + "/renovar")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of())
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+		assertThat(renewed).isNotNull();
+		assertThat(((Number) renewed.get("valor")).floatValue()).isEqualTo(150f);
+
+		var rejected = client.post()
+				.uri("/api/contratos")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"titularId", titular.getId(),
+						"vendedorId", vendedor.getId(),
+						"planoId", planoSaude.getId(),
+						"valor", 200f,
+						"vlrDesconto", 250d,
+						"codigo", "CT-DESC-ALTO"))
+				.retrieve()
+				.onStatus(status -> status.value() == 400, (req, res) -> {
+				})
+				.toEntity(new ParameterizedTypeReference<Map<String, String>>() {
+				});
+		assertThat(rejected.getStatusCode().value()).isEqualTo(400);
+		assertThat(rejected.getBody()).isNotNull();
+		assertThat(rejected.getBody().get("message")).contains("desconto");
+	}
+
+	@Test
+	void persistsInstallmentsAndKeepsCashAsOnePayment() {
+		Map<String, Object> created = client.post()
+				.uri("/api/contratos")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"titularId", titular.getId(),
+						"vendedorId", vendedor.getId(),
+						"planoId", planoSaude.getId(),
+						"valor", 100f,
+						"vlrDesconto", 10d,
+						"quantidadeParcelas", 3,
+						"codigo", "CT-PARC",
+						"dtInicio", "2026-01-15T00:00:00",
+						"dtFim", "2027-01-15T00:00:00"))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+
+		assertThat(created).isNotNull();
+		assertThat(((Number) created.get("valor")).floatValue()).isEqualTo(90f);
+		Contrato stored = contratos.findById(((Number) created.get("id")).longValue()).orElseThrow();
+		assertThat(stored.getPagamento().getQuantidade()).isEqualTo(3);
+		List<Parcela> rows = parcelas.findByPagamentoIdOrderByDtParcelaAscIdAsc(stored.getPagamento().getId());
+		assertThat(rows).hasSize(3);
+		assertThat(rows).allSatisfy(parcela -> assertThat(parcela.getVlrParcela()).isEqualTo(30d));
+		assertThat(rows.get(0).getDtParcela()).isEqualTo(LocalDateTime.parse("2026-01-15T00:00:00"));
+		assertThat(rows.get(1).getDtParcela()).isEqualTo(LocalDateTime.parse("2026-02-15T00:00:00"));
+		assertThat(rows.get(2).getDtParcela()).isEqualTo(LocalDateTime.parse("2026-03-15T00:00:00"));
 	}
 
 	@Test

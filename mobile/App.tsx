@@ -18,16 +18,21 @@ import {
   createTitular,
   listContratosByTitular,
   listPlanos,
+  listSeguradoras,
   listTitulares,
   renewContrato,
   apiBase,
   type Contrato,
   type Plano,
+  type Seguradora,
   type Titular,
 } from './src/api';
 
 export default function App() {
   const [planos, setPlanos] = useState<Plano[]>([]);
+  const [seguradoras, setSeguradoras] = useState<Seguradora[]>([]);
+  const [selectedSeguradoraId, setSelectedSeguradoraId] = useState<number | null>(null);
+  const [novaSeguradora, setNovaSeguradora] = useState('');
   const [titulares, setTitulares] = useState<Titular[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [contratosTitularId, setContratosTitularId] = useState<number | null>(null);
@@ -41,7 +46,6 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [planoNome, setPlanoNome] = useState('');
-  const [seguradoraNome, setSeguradoraNome] = useState('');
   const [planoDescricao, setPlanoDescricao] = useState('');
   const [titularNome, setTitularNome] = useState('');
   const [titularCpf, setTitularCpf] = useState('');
@@ -90,9 +94,19 @@ export default function App() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [nextPlanos, nextTitulares] = await Promise.all([listPlanos(), listTitulares()]);
+      const [nextPlanos, nextTitulares, nextSeguradoras] = await Promise.all([
+        listPlanos(),
+        listTitulares(),
+        listSeguradoras(),
+      ]);
       setPlanos(nextPlanos);
       setTitulares(nextTitulares);
+      setSeguradoras(nextSeguradoras);
+      setSelectedSeguradoraId((current) =>
+        current != null && nextSeguradoras.some((item) => item.id === current)
+          ? current
+          : (nextSeguradoras[0]?.id ?? null),
+      );
       const currentId = selectedTitularRef.current;
       const nextSelected =
         currentId != null && nextTitulares.some((t) => t.id === currentId)
@@ -132,26 +146,44 @@ export default function App() {
     }
   }
 
+  async function onCreateSeguradora() {
+    const nome = novaSeguradora.trim();
+    if (!nome) {
+      setError('Informe o nome da seguradora.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await createSeguradora(nome);
+      setNovaSeguradora('');
+      setSelectedSeguradoraId(created.id);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao criar seguradora');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function onCreatePlano() {
     const nome = planoNome.trim();
-    const seguradora = seguradoraNome.trim();
-    if (!seguradora) {
-      setError('Informe a seguradora do plano.');
+    if (selectedSeguradoraId == null) {
+      setError('Selecione a seguradora do plano.');
       return;
     }
     if (!nome) {
       setError('Informe o nome do plano.');
       return;
     }
+    const seguradoraId = selectedSeguradoraId;
     setSaving(true);
     setError(null);
     try {
-      const created = await createSeguradora(seguradora);
-      await createPlano(created.id, {
+      await createPlano(seguradoraId, {
         nome,
         descricao: planoDescricao.trim() || undefined,
       });
-      setSeguradoraNome('');
       setPlanoNome('');
       setPlanoDescricao('');
       await load();
@@ -231,6 +263,37 @@ export default function App() {
         {loading ? <ActivityIndicator color="#1f4b3a" style={styles.spinner} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        <Text style={styles.section}>Seguradoras</Text>
+        {seguradoras.length === 0 && !loading ? (
+          <Text style={styles.empty}>Nenhuma seguradora cadastrada.</Text>
+        ) : null}
+        {seguradoras.map((seguradora) => (
+          <Pressable
+            key={seguradora.id}
+            style={[styles.card, selectedSeguradoraId === seguradora.id && styles.cardSelected]}
+            onPress={() => setSelectedSeguradoraId(seguradora.id)}
+          >
+            <Text style={styles.cardTitle}>{seguradora.nome}</Text>
+            <Text style={styles.cardHint}>
+              {selectedSeguradoraId === seguradora.id ? 'Selecionada' : 'Toque para selecionar'}
+            </Text>
+          </Pressable>
+        ))}
+        <TextInput
+          style={styles.input}
+          value={novaSeguradora}
+          onChangeText={setNovaSeguradora}
+          placeholder="Nova seguradora"
+          placeholderTextColor="#8a8175"
+        />
+        <Pressable
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, saving && styles.buttonDisabled]}
+          onPress={() => void onCreateSeguradora()}
+          disabled={saving}
+        >
+          <Text style={styles.buttonText}>Adicionar seguradora</Text>
+        </Pressable>
+
         <Text style={styles.section}>Planos</Text>
         {planos.length === 0 && !loading ? <Text style={styles.empty}>Nenhum plano cadastrado.</Text> : null}
         {planos.map((plano) => (
@@ -239,13 +302,6 @@ export default function App() {
             {plano.descricao ? <Text style={styles.cardBody}>{plano.descricao}</Text> : null}
           </View>
         ))}
-        <TextInput
-          style={styles.input}
-          value={seguradoraNome}
-          onChangeText={setSeguradoraNome}
-          placeholder="Seguradora"
-          placeholderTextColor="#8a8175"
-        />
         <TextInput
           style={styles.input}
           value={planoNome}

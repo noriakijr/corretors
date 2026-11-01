@@ -28,6 +28,8 @@ public class Pagamento implements Serializable, IEntity {
 
 	private Double vlrDesconto;
 
+	private Integer quantidade;
+
 	@Override
 	public Long getId() {
 		return id;
@@ -75,6 +77,14 @@ public class Pagamento implements Serializable, IEntity {
 
 	public void setVlrDesconto(Double vlrDesconto) {
 		this.vlrDesconto = vlrDesconto;
+	}
+
+	public Integer getQuantidade() {
+		return quantidade;
+	}
+
+	public void setQuantidade(Integer quantidade) {
+		this.quantidade = quantidade;
 	}
 
 }

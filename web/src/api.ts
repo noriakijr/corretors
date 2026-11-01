@@ -133,6 +133,7 @@ export type ContratoInput = {
   pagamentoDescricao?: string;
   tipoPag?: PagamentoType;
   vlrDesconto?: number;
+  quantidadeParcelas?: number;
 };
 
 export type RenovarContratoInput = {

@@ -120,12 +120,14 @@ export function ContratoNovoPage() {
       setError('Informe um desconto numérico ou deixe em branco.');
       return;
     }
-    if (modo === 'parcelado') {
-      const quantidade = parseParcelas(parcelas);
-      if (quantidade === undefined || quantidade < 2) {
-        setError('Informe a quantidade de parcelas, com 2 ou mais.');
-        return;
-      }
+    if (desconto !== undefined && desconto > valorNumero) {
+      setError('O desconto não pode ser maior que o valor.');
+      return;
+    }
+    const quantidadeParcelas = modo === 'parcelado' ? parseParcelas(parcelas) : undefined;
+    if (modo === 'parcelado' && (quantidadeParcelas === undefined || quantidadeParcelas < 2)) {
+      setError('Informe a quantidade de parcelas, com 2 ou mais.');
+      return;
     }
     setSaving(true);
     setError(null);
@@ -143,6 +145,7 @@ export function ContratoNovoPage() {
         pagamentoDescricao: filled(pagamentoDescricao),
         tipoPag: tipoPag ? (tipoPag as PagamentoType) : undefined,
         vlrDesconto: desconto,
+        quantidadeParcelas,
       });
       navigate(`/titulares/${titularId}`, {
         state: { notice: 'Contrato ativo criado. O preço ficou no snapshot da venda.' },
@@ -178,13 +181,11 @@ export function ContratoNovoPage() {
 
   function onPlanoChange(nextId: string) {
     setPlanoId(nextId);
-    const plano = planosDaSeguradora.find((item) => String(item.id) === nextId);
+    const plano = planos.find((item) => String(item.id) === nextId);
     const preco = planoPreco(plano);
-    if (preco !== undefined) {
-      setValor(moneyInput(preco));
-    } else {
-      setValor('');
-    }
+    const nextValor = preco === undefined ? '' : moneyInput(preco);
+    setValor(nextValor);
+    window.setTimeout(() => setValor(nextValor), 0);
   }
 
   return (

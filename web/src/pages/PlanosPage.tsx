@@ -32,11 +32,23 @@ export function PlanosPage() {
     if (seguradoraId == null) {
       setLoading(false);
       setMissing(true);
+      setSeguradoraNome(null);
+      setPlanos([]);
+      setSelectedId(null);
+      setHistorico([]);
+      setNovoPreco('');
+      setNovaRenovacao('');
       return;
     }
     let cancelled = false;
     setLoading(true);
     setMissing(false);
+    setSeguradoraNome(null);
+    setPlanos([]);
+    setSelectedId(null);
+    setHistorico([]);
+    setNovoPreco('');
+    setNovaRenovacao('');
     getSeguradora(seguradoraId)
       .then((data) => {
         if (!cancelled) {
@@ -205,7 +217,7 @@ export function PlanosPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>{seguradoraNome ?? 'Seguradora'}</h1>
+          <h1>{loading ? 'Carregando…' : (seguradoraNome ?? 'Seguradora')}</h1>
           <p className="lede">
             Planos desta seguradora. O preço vigente entra na venda. O preço de renovação é opcional e também fica no
             histórico.
@@ -278,7 +290,9 @@ export function PlanosPage() {
           </section>
           <section className="panel">
             <h2>Detalhe</h2>
-            {selected ? (
+            {loading ? (
+              <p className="muted">Carregando…</p>
+            ) : selected ? (
               <div className="stack">
                 <dl className="kv">
                   <dt>Nome</dt>

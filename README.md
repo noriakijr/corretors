@@ -105,7 +105,7 @@ curl -s -X POST http://localhost:8080/api/contratos/1/renovar \
   -d '{"valor":210.0}'
 ```
 
-`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava um snapshot em `PlanoHistorico`, separado do histórico de catálogo). O preço vigente do plano é o último `POST /api/planos/{id}/precos`. O `vendedorId` vem de `GET` / `POST /api/vendedores` (`nome` obrigatório). As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI`, `CRED` e `PIX`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
+`POST /api/contratos` exige `titularId`, `vendedorId`, `planoId` e `valor` (grava o total com desconto no snapshot de `PlanoHistorico`, separado do histórico de catálogo). O desconto não pode passar do valor. `quantidadeParcelas` a partir de 2 grava essa quantidade e as linhas de `Parcela`; sem o campo, a venda fica à vista, um único pagamento. O preço vigente do plano é o último `POST /api/planos/{id}/precos`. O `vendedorId` vem de `GET` / `POST /api/vendedores` (`nome` obrigatório). As demais entidades (Dependente, Usuario, Pagamento, Parcela) estão mapeadas e são persistidas nos testes. `PagamentoType` continua gravado como `DINH`, `CHEQ`, `DEBI`, `CRED` e `PIX`. Datas que eram Joda `DateTime` passaram para `java.time` (`LocalDate` em `dtNasc`, `LocalDateTime` nas demais).
 
 Não há listagem global de contratos: o contrato se alcança por `GET /api/titulares/{id}/contratos` e o detalhe por `GET /api/contratos/{id}`.
 
@@ -159,7 +159,7 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:8080 npm start
 
 No simulador iOS, `http://localhost:8080` serve. Em um aparelho físico, use o IP da máquina na rede.
 
-A tela lista e cria planos e titulares, e lista os contratos do titular selecionado com botão **Renovar** (`POST /api/contratos/{id}/renovar`). Ao abrir, chama `GET /api/planos` e `GET /api/titulares`; ao escolher um titular, chama `GET /api/titulares/{id}/contratos`.
+A tela lista seguradoras, planos e titulares, e lista os contratos do titular selecionado com botão **Renovar** (`POST /api/contratos/{id}/renovar`). O plano usa a seguradora selecionada; criar um plano não cadastra outra seguradora. Ao abrir, chama `GET /api/planos`, `GET /api/seguradoras` e `GET /api/titulares`; ao escolher um titular, chama `GET /api/titulares/{id}/contratos`.
 
 Sem emulador, o cliente HTTP da mesma tela pode falar com a API que já está no ar:
 
