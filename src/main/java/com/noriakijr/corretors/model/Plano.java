@@ -24,6 +24,8 @@ public class Plano implements Serializable, IEntity {
 	@ManyToOne
 	private Seguradora seguradora;
 
+	private Integer limiteDependentes;
+
 	@Override
 	public Long getId() {
 		return id;
@@ -55,6 +57,14 @@ public class Plano implements Serializable, IEntity {
 
 	public void setSeguradora(Seguradora seguradora) {
 		this.seguradora = seguradora;
+	}
+
+	public Integer getLimiteDependentes() {
+		return limiteDependentes;
+	}
+
+	public void setLimiteDependentes(Integer limiteDependentes) {
+		this.limiteDependentes = limiteDependentes;
 	}
 
 }

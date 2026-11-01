@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import {
+  createDependente,
+  deleteDependente,
   errorMessage,
   getContrato,
+  listDependentes,
   listPlanos,
   listTitulares,
   listVendedores,
   renewContrato,
+  updateDependente,
 } from '../api.ts';
-import type { Contrato, Plano, Titular, Vendedor } from '../api.ts';
-import { filled, formatDateTime, formatMoney, labelOrId, moneyInput, parseDecimal, planoRotulo, textOrDash, toApiDateTime } from '../format.ts';
-import { ErrorBanner, Field, MoneyInput, StatusBadge } from '../components/ui.tsx';
+import type { Contrato, Dependente, Plano, Titular, Vendedor } from '../api.ts';
+import { filled, formatDate, formatDateTime, formatMoney, labelOrId, moneyInput, parseDecimal, periodoVigente, planoRotulo, textOrDash, toApiDateTime } from '../format.ts';
+import { DependentesEditor } from '../components/DependentesEditor.tsx';
+import type { DependenteDraft } from '../components/DependentesEditor.tsx';
+import { ErrorBanner, Field, MoneyInput, OkBanner, StatusBadge } from '../components/ui.tsx';
 
 function parseId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) {
@@ -24,9 +30,15 @@ function parseId(value: string | undefined): number | null {
 export function ContratoDetalhePage() {
   const params = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const contratoId = parseId(params.id);
+  const notice =
+    location.state && typeof location.state === 'object' && 'notice' in location.state
+      ? String((location.state as { notice?: unknown }).notice ?? '')
+      : '';
 
   const [contrato, setContrato] = useState<Contrato | null>(null);
+  const [dependentes, setDependentes] = useState<Dependente[]>([]);
   const [planos, setPlanos] = useState<Plano[]>([]);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [titulares, setTitulares] = useState<Titular[]>([]);
@@ -51,6 +63,8 @@ export function ContratoDetalhePage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setContrato(null);
+    setDependentes([]);
     getContrato(contratoId)
       .then((data) => {
         if (!cancelled) {
@@ -65,6 +79,17 @@ export function ContratoDetalhePage() {
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
+        }
+      });
+    listDependentes(contratoId)
+      .then((data) => {
+        if (!cancelled) {
+          setDependentes(data);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setError(errorMessage(cause));
         }
       });
     listPlanos()
@@ -94,7 +119,17 @@ export function ContratoDetalhePage() {
   }, [contratoId]);
 
   useEffect(() => {
-    if (!contrato) {
+    setDtInicio('');
+    setDtFim('');
+    setValor('');
+    setCodigo('');
+    setDescricao('');
+    setConfirmed(false);
+    setFormError(null);
+  }, [contratoId]);
+
+  useEffect(() => {
+    if (!contrato || contrato.id !== contratoId) {
       return;
     }
     const planoRenovacao = planos.find((item) => item.id === contrato.planoId)?.valorRenovacao;
@@ -102,10 +137,13 @@ export function ContratoDetalhePage() {
       return;
     }
     setValor((current) => (current === '' ? moneyInput(planoRenovacao) : current));
-  }, [contrato, planos]);
+  }, [contrato, contratoId, planos]);
 
   const ativo = contrato?.status === 'ATIVO';
+  const vigente = Boolean(contrato && ativo && periodoVigente(contrato.dtInicio, contrato.dtFim));
   const plano = planos.find((item) => item.id === contrato?.planoId);
+  const limite = plano ? plano.limiteDependentes : undefined;
+  const copiados = limite == null ? dependentes : dependentes.slice(0, limite);
   const vendedor = vendedores.find((item) => item.id === contrato?.vendedorId);
   const titular = titulares.find((item) => item.id === contrato?.titularId);
 
@@ -126,17 +164,16 @@ export function ContratoDetalhePage() {
     setSaving(true);
     setFormError(null);
     try {
-      await renewContrato(contrato.id, {
+      const novo = await renewContrato(contrato.id, {
         dtInicio: toApiDateTime(dtInicio),
         dtFim: toApiDateTime(dtFim),
         valor: valorNumero,
         codigo: filled(codigo),
         descricao: filled(descricao),
       });
-      const destino = contrato.titularId != null ? `/titulares/${contrato.titularId}` : '/titulares';
-      navigate(destino, {
+      navigate(`/contratos/${novo.id}`, {
         state: {
-          notice: 'Contrato renovado. O anterior ficou RENOVADO e o novo está ATIVO.',
+          notice: 'Contrato renovado. Os dependentes do contrato anterior foram copiados, dentro do limite do plano.',
         },
       });
     } catch (cause: unknown) {
@@ -144,6 +181,40 @@ export function ContratoDetalhePage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function incluirDependente(item: DependenteDraft) {
+    if (!contrato) {
+      return;
+    }
+    const saved = await createDependente(contrato.id, item);
+    setDependentes((current) => [...current, saved]);
+  }
+
+  async function alterarDependente(key: string, item: DependenteDraft) {
+    if (!contrato) {
+      return;
+    }
+    const dependenteId = Number(key);
+    const atual = dependentes.find((dependente) => dependente.id === dependenteId);
+    if (!atual) {
+      return;
+    }
+    const saved = await updateDependente(contrato.id, atual.id, item);
+    setDependentes((current) => current.map((dependente) => (dependente.id === atual.id ? saved : dependente)));
+  }
+
+  async function removerDependente(key: string) {
+    if (!contrato) {
+      return;
+    }
+    const dependenteId = Number(key);
+    const atual = dependentes.find((dependente) => dependente.id === dependenteId);
+    if (!atual) {
+      return;
+    }
+    await deleteDependente(contrato.id, atual.id);
+    setDependentes((current) => current.filter((dependente) => dependente.id !== atual.id));
   }
 
   return (
@@ -163,6 +234,7 @@ export function ContratoDetalhePage() {
           </Link>
         )}
       </header>
+      <OkBanner message={notice || null} />
       <ErrorBanner message={error} />
       {loading ? <p className="muted">Carregando…</p> : null}
       {contrato ? (
@@ -217,12 +289,59 @@ export function ContratoDetalhePage() {
             </dl>
           </section>
           <section className="panel">
+            <h2>Dependentes</h2>
+            <DependentesEditor
+              itens={dependentes.map((dependente) => ({
+                key: String(dependente.id),
+                nome: dependente.nome,
+                parentesco: dependente.parentesco,
+                dtNasc: dependente.dtNasc,
+              }))}
+              limite={limite}
+              editavel={vigente}
+              nota={
+                vigente
+                  ? 'Inclusão, alteração e remoção enquanto o contrato está vigente. Remover libera uma vaga.'
+                  : 'Contrato fora da vigência. A lista fica só para consulta.'
+              }
+              onCreate={incluirDependente}
+              onUpdate={alterarDependente}
+              onRemove={removerDependente}
+            />
+          </section>
+          <section className="panel">
             <h2>Renovar</h2>
             <p className="note">
-              Campos vazios repetem o preço, o plano e o vendedor. A vigência nova começa na data de fim do
-              contrato atual. O anterior fica RENOVADO e o novo nasce ATIVO, ligado por este registro.
+              Campos vazios repetem o preço, o plano e o vendedor. Sem início, a vigência nova começa agora; o fim
+              vazio dura um ano a partir desse início. O anterior fica RENOVADO e o novo nasce ATIVO, ligado por este
+              registro.
             </p>
             {!ativo ? <p className="note">Só um contrato ATIVO pode ser renovado.</p> : null}
+            <div className="stack">
+              <h3>Dependentes que serão copiados</h3>
+              {dependentes.length === 0 ? <p className="empty">Nenhum dependente para copiar.</p> : null}
+              {limite != null && dependentes.length > limite ? (
+                <p className="note">
+                  O plano renovado permite {limite}. Os primeiros {limite} serão copiados.
+                </p>
+              ) : null}
+              {copiados.length > 0 ? (
+                <ul className="dep-list">
+                  {copiados.map((item) => (
+                    <li key={item.id} className="dep-row">
+                      <div>
+                        <h3>{item.nome}</h3>
+                        <p>
+                          {item.parentesco}
+                          {' · '}
+                          {formatDate(item.dtNasc)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
             <ErrorBanner message={formError} />
             <form className="stack" noValidate onSubmit={onRenew}>
               <div className="form-grid">

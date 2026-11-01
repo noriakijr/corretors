@@ -1,9 +1,11 @@
 package com.noriakijr.corretors.web.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.noriakijr.corretors.model.PagamentoType;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -20,5 +22,6 @@ public record ContratoRequest(
 		String pagamentoDescricao,
 		PagamentoType tipoPag,
 		Double vlrDesconto,
-		@Min(1) Integer quantidadeParcelas) {
+		@Min(1) Integer quantidadeParcelas,
+		@Valid List<DependenteRequest> dependentes) {
 }

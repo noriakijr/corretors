@@ -38,6 +38,7 @@ public class ContratoService {
 	private final PlanoHistoricoRepository historicos;
 	private final PagamentoRepository pagamentos;
 	private final ParcelaRepository parcelas;
+	private final DependenteService dependentes;
 
 	public ContratoService(
 			ContratoRepository contratos,
@@ -46,7 +47,8 @@ public class ContratoService {
 			PlanoRepository planos,
 			PlanoHistoricoRepository historicos,
 			PagamentoRepository pagamentos,
-			ParcelaRepository parcelas) {
+			ParcelaRepository parcelas,
+			DependenteService dependentes) {
 		this.contratos = contratos;
 		this.titulares = titulares;
 		this.vendedores = vendedores;
@@ -54,6 +56,7 @@ public class ContratoService {
 		this.historicos = historicos;
 		this.pagamentos = pagamentos;
 		this.parcelas = parcelas;
+		this.dependentes = dependentes;
 	}
 
 	@Transactional(readOnly = true)
@@ -105,7 +108,9 @@ public class ContratoService {
 		contrato.setVendedor(vendedor);
 		contrato.setPlanoHistorico(historico);
 		contrato.setPagamento(pagamento);
-		return ContratoResponse.from(contratos.save(contrato));
+		contrato = contratos.save(contrato);
+		dependentes.attach(contrato, request.dependentes());
+		return ContratoResponse.from(contrato);
 	}
 
 	@Transactional
@@ -127,9 +132,7 @@ public class ContratoService {
 				: new RenovarContratoRequest(null, null, null, null, null);
 		LocalDateTime agora = LocalDateTime.now();
 		float valor = body.valor() != null ? body.valor() : anterior.getPlanoHistorico().getValor();
-		LocalDateTime dtInicio = body.dtInicio() != null
-				? body.dtInicio()
-				: (anterior.getDtFim() != null ? anterior.getDtFim() : agora);
+		LocalDateTime dtInicio = body.dtInicio() != null ? body.dtInicio() : agora;
 		LocalDateTime dtFim = body.dtFim() != null ? body.dtFim() : dtInicio.plusYears(1);
 
 		PlanoHistorico historico = snapshot(anterior.getPlanoHistorico().getPlano(), valor, agora);
@@ -150,7 +153,9 @@ public class ContratoService {
 
 		anterior.setStatus(ContratoStatus.RENOVADO);
 		contratos.save(anterior);
-		return ContratoResponse.from(contratos.save(renovado));
+		renovado = contratos.save(renovado);
+		dependentes.copy(anterior, renovado);
+		return ContratoResponse.from(renovado);
 	}
 
 	private PlanoHistorico snapshot(Plano plano, float valor, LocalDateTime quando) {

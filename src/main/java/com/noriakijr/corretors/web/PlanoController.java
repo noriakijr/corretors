@@ -6,12 +6,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.noriakijr.corretors.service.PlanoService;
+import com.noriakijr.corretors.web.dto.PlanoLimiteRequest;
 import com.noriakijr.corretors.web.dto.PlanoPrecoRequest;
 import com.noriakijr.corretors.web.dto.PlanoPrecoResponse;
 import com.noriakijr.corretors.web.dto.PlanoResponse;
@@ -31,6 +33,11 @@ public class PlanoController {
 	@GetMapping
 	public List<PlanoResponse> list() {
 		return planos.list();
+	}
+
+	@PutMapping("/{id}")
+	public PlanoResponse updateLimite(@PathVariable Long id, @Valid @RequestBody PlanoLimiteRequest request) {
+		return planos.updateLimite(id, request.limiteDependentes());
 	}
 
 	@GetMapping("/{id}/precos")

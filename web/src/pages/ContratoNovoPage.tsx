@@ -11,7 +11,9 @@ import {
   listVendedores,
 } from '../api.ts';
 import type { PagamentoType, Plano, Seguradora, Titular, Vendedor } from '../api.ts';
-import { filled, formatMoney, moneyInput, parseDecimal, parseParcelas, planoPreco, toApiDateTime } from '../format.ts';
+import { filled, formatMoney, hojeIso, moneyInput, parseDecimal, parseParcelas, periodoVigente, planoPreco, plusYearsIso, toApiDateTime } from '../format.ts';
+import { DependentesEditor } from '../components/DependentesEditor.tsx';
+import type { DependenteDraft } from '../components/DependentesEditor.tsx';
 import { DigitsInput, ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
 
 const TIPOS: { value: PagamentoType; label: string }[] = [
@@ -21,6 +23,8 @@ const TIPOS: { value: PagamentoType; label: string }[] = [
   { value: 'CARTAO_CREDITO', label: 'Cartão de crédito' },
   { value: 'PIX', label: 'Pix' },
 ];
+
+type DependenteVenda = DependenteDraft & { key: string };
 
 function parseId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) {
@@ -57,6 +61,7 @@ export function ContratoNovoPage() {
   const [pagamentoDescricao, setPagamentoDescricao] = useState('');
   const [tipoPag, setTipoPag] = useState('');
   const [vlrDesconto, setVlrDesconto] = useState('');
+  const [dependentes, setDependentes] = useState<DependenteVenda[]>([]);
 
   useEffect(() => {
     if (titularId == null) {
@@ -129,6 +134,15 @@ export function ContratoNovoPage() {
       setError('Informe a quantidade de parcelas, com 2 ou mais.');
       return;
     }
+    if (dependentes.length > 0 && !vendaVigente) {
+      setError('Dependentes só podem ser incluídos com o contrato vigente. Ajuste as datas ou remova os dependentes.');
+      return;
+    }
+    const limite = planoSelecionado?.limiteDependentes;
+    if (limite != null && dependentes.length > limite) {
+      setError('A quantidade de dependentes passa do limite do plano.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -146,6 +160,10 @@ export function ContratoNovoPage() {
         tipoPag: tipoPag ? (tipoPag as PagamentoType) : undefined,
         vlrDesconto: desconto,
         quantidadeParcelas,
+        dependentes:
+          dependentes.length > 0
+            ? dependentes.map(({ nome, parentesco, dtNasc }) => ({ nome, parentesco, dtNasc }))
+            : undefined,
       });
       navigate(`/titulares/${titularId}`, {
         state: { notice: 'Contrato ativo criado. O preço ficou no snapshot da venda.' },
@@ -172,6 +190,25 @@ export function ContratoNovoPage() {
       : base - descontoAplicado;
   const quantidade = parseParcelas(parcelas);
   const cadaParcela = total !== undefined && quantidade !== undefined ? total / quantidade : undefined;
+
+  const aquisicaoEfetiva = dtAquisicao ? dtAquisicao.slice(0, 10) : hojeIso();
+  const inicioEfetivo = dtInicio ? dtInicio.slice(0, 10) : aquisicaoEfetiva;
+  const fimEfetivo = dtFim ? dtFim.slice(0, 10) : plusYearsIso(inicioEfetivo, 1);
+  const vendaVigente = periodoVigente(inicioEfetivo, fimEfetivo);
+
+  function incluirDependente(item: DependenteDraft) {
+    setDependentes((current) => [...current, { ...item, key: crypto.randomUUID() }]);
+  }
+
+  function alterarDependente(key: string, item: DependenteDraft) {
+    setDependentes((current) =>
+      current.map((atual) => (atual.key === key ? { ...atual, ...item, key } : atual)),
+    );
+  }
+
+  function removerDependente(key: string) {
+    setDependentes((current) => current.filter((atual) => atual.key !== key));
+  }
 
   function onSeguradoraChange(nextId: string) {
     setSeguradoraId(nextId);
@@ -208,7 +245,8 @@ export function ContratoNovoPage() {
       {loading ? <p className="muted">Carregando…</p> : null}
       {!loading && missingTitular ? <p className="empty">Titular não encontrado.</p> : null}
       {titular ? (
-        <form className="panel stack" noValidate onSubmit={onSubmit}>
+        <div className="panel stack">
+        <form id="venda" className="stack" noValidate onSubmit={onSubmit}>
           <dl className="kv">
             <dt>Titular</dt>
             <dd>{titular.nome}</dd>
@@ -368,12 +406,31 @@ export function ContratoNovoPage() {
             </Field>
             <p className="note wide">Se o fim ficar vazio, a vigência dura um ano a partir do início.</p>
           </div>
-          <div className="actions">
-            <button className="button" type="submit" disabled={saving}>
-              {saving ? 'Salvando…' : 'Registrar venda'}
-            </button>
-          </div>
         </form>
+        <section className="stack">
+          <h2>Dependentes</h2>
+          <DependentesEditor
+            itens={dependentes}
+            limite={planoSelecionado ? planoSelecionado.limiteDependentes : undefined}
+            editavel={Boolean(planoSelecionado) && vendaVigente}
+            nota={
+              !planoSelecionado
+                ? 'Selecione o plano para incluir dependentes.'
+                : vendaVigente
+                  ? 'Eles entram neste contrato, até o limite do plano. Alterar um dependente não ocupa vaga nova.'
+                  : 'O contrato só recebe dependentes enquanto estiver vigente: ativo e com hoje entre o início e o fim.'
+            }
+            onCreate={incluirDependente}
+            onUpdate={alterarDependente}
+            onRemove={removerDependente}
+          />
+        </section>
+        <div className="actions">
+          <button className="button" type="submit" form="venda" disabled={saving}>
+            {saving ? 'Salvando…' : 'Registrar venda'}
+          </button>
+        </div>
+        </div>
       ) : null}
     </div>
   );
