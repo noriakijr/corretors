@@ -4,13 +4,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import {
   createContrato,
-  createVendedor,
   errorMessage,
   listPlanos,
+  listSeguradoras,
   listTitulares,
   listVendedores,
 } from '../api.ts';
-import type { PagamentoType, Plano, Titular, Vendedor } from '../api.ts';
+import type { PagamentoType, Plano, Seguradora, Titular, Vendedor } from '../api.ts';
 import { filled, formatMoney, moneyInput, parseDecimal, parseParcelas, planoPreco, toApiDateTime } from '../format.ts';
 import { DigitsInput, ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
 
@@ -36,15 +36,15 @@ export function ContratoNovoPage() {
   const [titular, setTitular] = useState<Titular | null>(null);
   const [missingTitular, setMissingTitular] = useState(false);
   const [planos, setPlanos] = useState<Plano[]>([]);
+  const [seguradoras, setSeguradoras] = useState<Seguradora[]>([]);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [creatingSeller, setCreatingSeller] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [seguradoraId, setSeguradoraId] = useState('');
   const [planoId, setPlanoId] = useState('');
   const [vendedorId, setVendedorId] = useState('');
-  const [novoVendedor, setNovoVendedor] = useState('');
   const [valor, setValor] = useState('');
   const [modo, setModo] = useState<'vista' | 'parcelado'>('vista');
   const [parcelas, setParcelas] = useState('2');
@@ -64,8 +64,8 @@ export function ContratoNovoPage() {
       return;
     }
     let cancelled = false;
-    Promise.all([listTitulares(), listPlanos(), listVendedores()])
-      .then(([titulares, planosData, vendedoresData]) => {
+    Promise.all([listTitulares(), listPlanos(), listSeguradoras(), listVendedores()])
+      .then(([titulares, planosData, seguradorasData, vendedoresData]) => {
         if (cancelled) {
           return;
         }
@@ -73,6 +73,7 @@ export function ContratoNovoPage() {
         setTitular(found);
         setMissingTitular(found == null);
         setPlanos(planosData);
+        setSeguradoras(seguradorasData);
         setVendedores(vendedoresData);
       })
       .catch((cause: unknown) => {
@@ -90,30 +91,14 @@ export function ContratoNovoPage() {
     };
   }, [titularId]);
 
-  async function onCreateVendedor() {
-    const nome = filled(novoVendedor);
-    if (!nome) {
-      setError('Informe o nome do vendedor.');
-      return;
-    }
-    setCreatingSeller(true);
-    setError(null);
-    try {
-      const created = await createVendedor({ nome });
-      setVendedores((current) => [...current, created]);
-      setVendedorId(String(created.id));
-      setNovoVendedor('');
-    } catch (cause: unknown) {
-      setError(errorMessage(cause));
-    } finally {
-      setCreatingSeller(false);
-    }
-  }
-
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (titularId == null || titular == null) {
       setError('Titular não encontrado.');
+      return;
+    }
+    if (!seguradoraId) {
+      setError('Selecione a seguradora.');
       return;
     }
     if (!planoId) {
@@ -168,7 +153,10 @@ export function ContratoNovoPage() {
     }
   }
 
-  const planoSelecionado = planos.find((item) => String(item.id) === planoId);
+  const planosDaSeguradora = seguradoraId
+    ? planos.filter((plano) => String(plano.seguradoraId) === seguradoraId)
+    : [];
+  const planoSelecionado = planosDaSeguradora.find((item) => String(item.id) === planoId);
   const precoCatalogo = planoPreco(planoSelecionado);
   const base = parseDecimal(valor);
   const descontoInformado = parseDecimal(vlrDesconto);
@@ -181,12 +169,20 @@ export function ContratoNovoPage() {
   const quantidade = parseParcelas(parcelas);
   const cadaParcela = total !== undefined && quantidade !== undefined ? total / quantidade : undefined;
 
+  function onSeguradoraChange(nextId: string) {
+    setSeguradoraId(nextId);
+    setPlanoId('');
+    setValor('');
+  }
+
   function onPlanoChange(nextId: string) {
     setPlanoId(nextId);
-    const plano = planos.find((item) => String(item.id) === nextId);
+    const plano = planosDaSeguradora.find((item) => String(item.id) === nextId);
     const preco = planoPreco(plano);
     if (preco !== undefined) {
       setValor(moneyInput(preco));
+    } else {
+      setValor('');
     }
   }
 
@@ -216,19 +212,41 @@ export function ContratoNovoPage() {
             <dd>{titular.nome}</dd>
           </dl>
           <div className="form-grid">
-            <Field label="Plano" wide>
-              <select value={planoId} onChange={(event) => onPlanoChange(event.target.value)}>
-                <option value="">Selecione o plano</option>
-                {planos.map((plano) => (
-                  <option key={plano.id} value={plano.id}>
-                    {plano.seguradoraNome ? `${plano.nome} — ${plano.seguradoraNome}` : plano.nome}
+            <Field label="Seguradora" wide>
+              <select value={seguradoraId} onChange={(event) => onSeguradoraChange(event.target.value)}>
+                <option value="">Selecione a seguradora</option>
+                {seguradoras.map((seguradora) => (
+                  <option key={seguradora.id} value={seguradora.id}>
+                    {seguradora.nome}
                   </option>
                 ))}
               </select>
             </Field>
-            {planos.length === 0 ? (
+            {seguradoras.length === 0 ? (
               <p className="note wide">
-                Nenhum plano cadastrado. <Link to="/seguradoras">Cadastrar uma seguradora</Link> antes de vender.
+                Nenhuma seguradora cadastrada. <Link to="/seguradoras">Cadastrar uma seguradora</Link> antes de vender.
+              </p>
+            ) : null}
+            <Field label="Plano" wide>
+              <select
+                value={planoId}
+                disabled={!seguradoraId}
+                onChange={(event) => onPlanoChange(event.target.value)}
+              >
+                <option value="">
+                  {seguradoraId ? 'Selecione o plano' : 'Selecione a seguradora primeiro'}
+                </option>
+                {planosDaSeguradora.map((plano) => (
+                  <option key={plano.id} value={plano.id}>
+                    {plano.nome} — {plano.valor == null ? 'Sem preço' : formatMoney(plano.valor)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {seguradoraId && planosDaSeguradora.length === 0 ? (
+              <p className="note wide">
+                Esta seguradora não tem planos.{' '}
+                <Link to={`/seguradoras/${seguradoraId}`}>Cadastrar um plano</Link>.
               </p>
             ) : null}
             <Field label="Vendedor que fechou o contrato" wide>
@@ -241,35 +259,27 @@ export function ContratoNovoPage() {
                 ))}
               </select>
             </Field>
-            <div className="inline-create wide">
-              <Field label="Cadastrar vendedor agora">
-                <input
-                  value={novoVendedor}
-                  onChange={(event) => setNovoVendedor(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      void onCreateVendedor();
-                    }
-                  }}
-                  placeholder="Nome"
-                  autoComplete="off"
-                />
-              </Field>
-              <button
-                className="button secondary"
-                type="button"
-                onClick={onCreateVendedor}
-                disabled={creatingSeller}
-              >
-                {creatingSeller ? 'Salvando…' : 'Cadastrar'}
-              </button>
-            </div>
             <Field label="Valor (R$)">
               <MoneyInput value={valor} onChange={setValor} />
             </Field>
             <Field label="Desconto (R$)">
               <MoneyInput value={vlrDesconto} onChange={setVlrDesconto} />
+            </Field>
+            <Field label="Tipo de pagamento">
+              <select value={tipoPag} onChange={(event) => setTipoPag(event.target.value)}>
+                <option value="">Dinheiro (padrão)</option>
+                {TIPOS.map((tipo) => (
+                  <option key={tipo.value} value={tipo.value}>
+                    {tipo.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Descrição do pagamento">
+              <input
+                value={pagamentoDescricao}
+                onChange={(event) => setPagamentoDescricao(event.target.value)}
+              />
             </Field>
             {planoId ? (
               <p className="note wide">
@@ -355,25 +365,9 @@ export function ContratoNovoPage() {
               <input type="datetime-local" value={dtFim} onChange={(event) => setDtFim(event.target.value)} />
             </Field>
             <p className="note wide">Se o fim ficar vazio, a vigência dura um ano a partir do início.</p>
-            <Field label="Descrição do pagamento">
-              <input
-                value={pagamentoDescricao}
-                onChange={(event) => setPagamentoDescricao(event.target.value)}
-              />
-            </Field>
-            <Field label="Tipo de pagamento">
-              <select value={tipoPag} onChange={(event) => setTipoPag(event.target.value)}>
-                <option value="">Dinheiro (padrão)</option>
-                {TIPOS.map((tipo) => (
-                  <option key={tipo.value} value={tipo.value}>
-                    {tipo.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
           </div>
           <div className="actions">
-            <button className="button" type="submit" disabled={saving || planos.length === 0}>
+            <button className="button" type="submit" disabled={saving}>
               {saving ? 'Salvando…' : 'Registrar venda'}
             </button>
           </div>
