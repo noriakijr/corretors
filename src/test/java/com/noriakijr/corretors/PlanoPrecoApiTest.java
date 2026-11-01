@@ -35,6 +35,7 @@ class PlanoPrecoApiTest {
 				"valor", 100.0));
 		long planoId = idOf(plano);
 		assertThat(number(plano.get("valor"))).isCloseTo(100.0, within(0.001));
+		assertThat(plano.get("valorRenovacao")).isNull();
 
 		Map<String, Object> segundo = post("/api/planos/" + planoId + "/precos", Map.of("valor", 250.0));
 		assertThat(segundo.get("dtModif")).asString().contains("T");
@@ -55,6 +56,7 @@ class PlanoPrecoApiTest {
 		assertThat(historico.get(1).get("dtModif")).isNotNull();
 		assertThat(historico.get(0).get("dtModif").toString())
 				.isGreaterThanOrEqualTo(historico.get(1).get("dtModif").toString());
+		assertThat(historico).allSatisfy(item -> assertThat(item.get("renovacao")).isEqualTo(false));
 
 		List<Map<String, Object>> planos = list("/api/planos");
 		assertThat(planos).anySatisfy(item -> {
@@ -68,9 +70,53 @@ class PlanoPrecoApiTest {
 	void planoWithoutPriceHasEmptyHistory() {
 		Map<String, Object> plano = post("/api/planos", Map.of("nome", "Plano Sem Preco"));
 		assertThat(plano.get("valor")).isNull();
+		assertThat(plano.get("valorRenovacao")).isNull();
 
 		List<Map<String, Object>> historico = list("/api/planos/" + idOf(plano) + "/precos");
 		assertThat(historico).isEmpty();
+	}
+
+	@Test
+	void renewalPriceIsOptionalAndKeptInHistory() {
+		Map<String, Object> semRenovacao = post("/api/planos", Map.of(
+				"nome", "Plano Sem Renovacao",
+				"valor", 80.0));
+		assertThat(semRenovacao.get("valorRenovacao")).isNull();
+		List<Map<String, Object>> historicoSem = list("/api/planos/" + idOf(semRenovacao) + "/precos");
+		assertThat(historicoSem).hasSize(1);
+		assertThat(historicoSem.get(0).get("renovacao")).isEqualTo(false);
+
+		Map<String, Object> comRenovacao = post("/api/planos", Map.of(
+				"nome", "Plano Com Renovacao",
+				"valor", 100.0,
+				"valorRenovacao", 120.0));
+		long planoId = idOf(comRenovacao);
+		assertThat(number(comRenovacao.get("valor"))).isCloseTo(100.0, within(0.001));
+		assertThat(number(comRenovacao.get("valorRenovacao"))).isCloseTo(120.0, within(0.001));
+
+		Map<String, Object> atualizado = post("/api/planos/" + planoId + "/precos", Map.of(
+				"valor", 150.0,
+				"renovacao", true));
+		assertThat(atualizado.get("renovacao")).isEqualTo(true);
+		assertThat(atualizado.get("dtModif")).asString().contains("T");
+
+		List<Map<String, Object>> historico = list("/api/planos/" + planoId + "/precos");
+		assertThat(historico).hasSize(3);
+		assertThat(historico.get(0).get("renovacao")).isEqualTo(true);
+		assertThat(number(historico.get(0).get("valor"))).isCloseTo(150.0, within(0.001));
+		assertThat(historico.get(0).get("dtModif")).isNotNull();
+		assertThat(historico).anySatisfy(item -> {
+			assertThat(item.get("renovacao")).isEqualTo(true);
+			assertThat(number(item.get("valor"))).isCloseTo(120.0, within(0.001));
+		});
+
+		List<Map<String, Object>> planos = list("/api/planos");
+		assertThat(planos).anySatisfy(item -> {
+			if (idOf(item) == planoId) {
+				assertThat(number(item.get("valor"))).isCloseTo(100.0, within(0.001));
+				assertThat(number(item.get("valorRenovacao"))).isCloseTo(150.0, within(0.001));
+			}
+		});
 	}
 
 	@Test

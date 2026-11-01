@@ -59,10 +59,10 @@ Testes, inclusive a carga do contexto Spring:
 
 | Método | Caminho | Uso |
 | --- | --- | --- |
-| GET | `/api/planos` | lista planos (`id`, `nome`, `descricao`, `valor` vigente) |
-| POST | `/api/planos` | cria plano. `nome` é obrigatório. `valor` opcional grava o primeiro preço |
-| GET | `/api/planos/{id}/precos` | histórico completo de preços do catálogo, o mais novo primeiro (`valor`, `dtModif`) |
-| POST | `/api/planos/{id}/precos` | registra um novo preço. O snapshot da venda não entra nesse histórico |
+| GET | `/api/planos` | lista planos (`id`, `nome`, `descricao`, `valor` vigente, `valorRenovacao` opcional) |
+| POST | `/api/planos` | cria plano. `nome` é obrigatório. `valor` e `valorRenovacao` são opcionais |
+| GET | `/api/planos/{id}/precos` | histórico de preço e de renovação, o mais novo primeiro (`valor`, `dtModif`, `renovacao`) |
+| POST | `/api/planos/{id}/precos` | registra um preço. `renovacao: true` grava o preço de renovação. O snapshot da venda não entra nesse histórico |
 | GET | `/api/vendedores` | lista vendedores (`id`, `nome`) |
 | POST | `/api/vendedores` | cria vendedor. `nome` é obrigatório |
 | GET | `/api/titulares` | lista titulares, com Contato e Endereco |

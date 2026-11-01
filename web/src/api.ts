@@ -3,18 +3,21 @@ export type Plano = {
   nome: string;
   descricao: string | null;
   valor: number | null;
+  valorRenovacao: number | null;
 };
 
 export type PlanoInput = {
   nome: string;
   descricao?: string;
   valor?: number;
+  valorRenovacao?: number;
 };
 
 export type PlanoPreco = {
   id: number;
   valor: number;
   dtModif: string;
+  renovacao: boolean;
 };
 
 export type Endereco = {
@@ -215,10 +218,10 @@ export function listPrecos(planoId: number): Promise<PlanoPreco[]> {
   return request<PlanoPreco[]>(`/api/planos/${planoId}/precos`);
 }
 
-export function addPreco(planoId: number, valor: number): Promise<PlanoPreco> {
+export function addPreco(planoId: number, valor: number, renovacao = false): Promise<PlanoPreco> {
   return request<PlanoPreco>(`/api/planos/${planoId}/precos`, {
     method: 'POST',
-    body: JSON.stringify({ valor }),
+    body: JSON.stringify({ valor, renovacao }),
   });
 }
 

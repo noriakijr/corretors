@@ -13,11 +13,14 @@ export function PlanosPage() {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [precoInicial, setPrecoInicial] = useState('');
+  const [renovacaoInicial, setRenovacaoInicial] = useState('');
   const [novoPreco, setNovoPreco] = useState('');
+  const [novaRenovacao, setNovaRenovacao] = useState('');
   const [historico, setHistorico] = useState<PlanoPreco[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPreco, setSavingPreco] = useState(false);
+  const [savingRenovacao, setSavingRenovacao] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +86,11 @@ export function PlanosPage() {
       setError('Informe o preço com números, no formato 1.234,56.');
       return;
     }
+    const renovacao = parseDecimal(renovacaoInicial);
+    if (Number.isNaN(renovacao)) {
+      setError('Informe o preço de renovação com números, no formato 1.234,56, ou deixe em branco.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -90,12 +98,14 @@ export function PlanosPage() {
         nome: nomePlano,
         descricao: filled(descricao),
         valor: preco,
+        valorRenovacao: renovacao,
       });
       setPlanos((current) => [...current, created]);
       setSelectedId(created.id);
       setNome('');
       setDescricao('');
       setPrecoInicial('');
+      setRenovacaoInicial('');
     } catch (cause: unknown) {
       setError(errorMessage(cause));
     } finally {
@@ -129,6 +139,34 @@ export function PlanosPage() {
     }
   }
 
+  async function onChangeRenewal(event: FormEvent) {
+    event.preventDefault();
+    if (selected == null) {
+      return;
+    }
+    const preco = parseDecimal(novaRenovacao);
+    if (preco === undefined || Number.isNaN(preco)) {
+      setError('Informe o preço de renovação com números, no formato 1.234,56.');
+      return;
+    }
+    setSavingRenovacao(true);
+    setError(null);
+    try {
+      const saved = await addPreco(selected.id, preco, true);
+      setHistorico((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+      setPlanos((current) =>
+        current.map((plano) =>
+          plano.id === selected.id ? { ...plano, valorRenovacao: saved.valor } : plano,
+        ),
+      );
+      setNovaRenovacao('');
+    } catch (cause: unknown) {
+      setError(errorMessage(cause));
+    } finally {
+      setSavingRenovacao(false);
+    }
+  }
+
   const historicoVisivel = [...historico].sort((left, right) => {
     if (left.dtModif === right.dtModif) {
       return right.id - left.id;
@@ -142,7 +180,7 @@ export function PlanosPage() {
         <div>
           <h1>Planos</h1>
           <p className="lede">
-            Catálogo da corretora. O preço vigente entra na venda, e cada alteração fica no histórico.
+            Catálogo da corretora. O preço vigente entra na venda. O preço de renovação é opcional e também fica no histórico.
           </p>
         </div>
       </header>
@@ -177,6 +215,7 @@ export function PlanosPage() {
                   {textOrDash(plano.descricao)}
                   {' · '}
                   {plano.valor == null ? 'Sem preço' : formatMoney(plano.valor)}
+                  {plano.valorRenovacao == null ? '' : ` · Renovação ${formatMoney(plano.valorRenovacao)}`}
                 </p>
               </button>
             ))}
@@ -194,6 +233,9 @@ export function PlanosPage() {
               </Field>
               <Field label="Preço (R$)">
                 <MoneyInput value={precoInicial} onChange={setPrecoInicial} />
+              </Field>
+              <Field label="Preço de renovação (R$)">
+                <MoneyInput value={renovacaoInicial} onChange={setRenovacaoInicial} />
               </Field>
               <div className="actions">
                 <button className="button" type="submit" disabled={saving}>
@@ -213,6 +255,8 @@ export function PlanosPage() {
                   <dd>{textOrDash(selected.descricao)}</dd>
                   <dt>Preço atual</dt>
                   <dd>{formatMoney(selected.valor)}</dd>
+                  <dt>Preço de renovação</dt>
+                  <dd>{formatMoney(selected.valorRenovacao)}</dd>
                 </dl>
                 <form className="stack" noValidate onSubmit={onChangePrice}>
                   <Field label="Novo preço (R$)">
@@ -224,6 +268,16 @@ export function PlanosPage() {
                     </button>
                   </div>
                 </form>
+                <form className="stack" noValidate onSubmit={onChangeRenewal}>
+                  <Field label="Novo preço de renovação (R$)">
+                    <MoneyInput value={novaRenovacao} onChange={setNovaRenovacao} />
+                  </Field>
+                  <div className="actions">
+                    <button className="button" type="submit" disabled={savingRenovacao}>
+                      {savingRenovacao ? 'Salvando…' : 'Registrar renovação'}
+                    </button>
+                  </div>
+                </form>
                 <h3>Histórico de preços</h3>
                 {historicoVisivel.length === 0 ? (
                   <p className="empty">Nenhum preço registrado.</p>
@@ -232,6 +286,7 @@ export function PlanosPage() {
                     <thead>
                       <tr>
                         <th>Data</th>
+                        <th>Tipo</th>
                         <th className="num">Valor</th>
                       </tr>
                     </thead>
@@ -239,6 +294,7 @@ export function PlanosPage() {
                       {historicoVisivel.map((item) => (
                         <tr key={item.id}>
                           <td>{formatDateTime(item.dtModif)}</td>
+                          <td>{item.renovacao ? 'Renovação' : 'Preço'}</td>
                           <td className="num">{formatMoney(item.valor)}</td>
                         </tr>
                       ))}

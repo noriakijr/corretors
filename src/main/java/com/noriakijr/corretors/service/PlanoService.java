@@ -32,9 +32,10 @@ public class PlanoService {
 
 	@Transactional(readOnly = true)
 	public List<PlanoResponse> list() {
-		Map<Long, Float> atuais = currentPrices();
+		Map<Long, Float> atuais = currentPrices(false);
+		Map<Long, Float> renovacoes = currentPrices(true);
 		return planos.findAll().stream()
-				.map(plano -> PlanoResponse.from(plano, atuais.get(plano.getId())))
+				.map(plano -> PlanoResponse.from(plano, atuais.get(plano.getId()), renovacoes.get(plano.getId())))
 				.toList();
 	}
 
@@ -45,10 +46,14 @@ public class PlanoService {
 		plano.setDescricao(request.descricao());
 		plano = planos.save(plano);
 		Float valor = null;
+		Float valorRenovacao = null;
 		if (request.valor() != null) {
-			valor = saveCatalogPrice(plano, request.valor()).getValor();
+			valor = saveCatalogPrice(plano, request.valor(), false).getValor();
 		}
-		return PlanoResponse.from(plano, valor);
+		if (request.valorRenovacao() != null) {
+			valorRenovacao = saveCatalogPrice(plano, request.valorRenovacao(), true).getValor();
+		}
+		return PlanoResponse.from(plano, valor, valorRenovacao);
 	}
 
 	@Transactional(readOnly = true)
@@ -62,21 +67,26 @@ public class PlanoService {
 	@Transactional
 	public PlanoPrecoResponse addPrice(Long planoId, PlanoPrecoRequest request) {
 		Plano plano = requirePlano(planoId);
-		return PlanoPrecoResponse.from(saveCatalogPrice(plano, request.valor()));
+		boolean renovacao = Boolean.TRUE.equals(request.renovacao());
+		return PlanoPrecoResponse.from(saveCatalogPrice(plano, request.valor(), renovacao));
 	}
 
-	private PlanoHistorico saveCatalogPrice(Plano plano, float valor) {
+	private PlanoHistorico saveCatalogPrice(Plano plano, float valor, boolean renovacao) {
 		PlanoHistorico historico = new PlanoHistorico();
 		historico.setPlano(plano);
 		historico.setValor(valor);
 		historico.setDtModif(LocalDateTime.now());
 		historico.setCatalogo(true);
+		historico.setRenovacao(renovacao);
 		return historicos.save(historico);
 	}
 
-	private Map<Long, Float> currentPrices() {
+	private Map<Long, Float> currentPrices(boolean renovacao) {
 		Map<Long, Float> atuais = new HashMap<>();
 		for (PlanoHistorico historico : historicos.findByCatalogoTrueOrderByDtModifDescIdDesc()) {
+			if (historico.isRenovacao() != renovacao) {
+				continue;
+			}
 			if (historico.getPlano() == null || historico.getPlano().getId() == null) {
 				continue;
 			}

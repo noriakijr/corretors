@@ -27,6 +27,8 @@ public class PlanoHistorico implements Serializable, IEntity {
 
 	private boolean catalogo;
 
+	private boolean renovacao;
+
 	@Override
 	public Long getId() {
 		return id;
@@ -66,6 +68,14 @@ public class PlanoHistorico implements Serializable, IEntity {
 
 	public void setCatalogo(boolean catalogo) {
 		this.catalogo = catalogo;
+	}
+
+	public boolean isRenovacao() {
+		return renovacao;
+	}
+
+	public void setRenovacao(boolean renovacao) {
+		this.renovacao = renovacao;
 	}
 
 }

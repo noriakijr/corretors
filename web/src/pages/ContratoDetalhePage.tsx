@@ -93,6 +93,17 @@ export function ContratoDetalhePage() {
     };
   }, [contratoId]);
 
+  useEffect(() => {
+    if (!contrato) {
+      return;
+    }
+    const planoRenovacao = planos.find((item) => item.id === contrato.planoId)?.valorRenovacao;
+    if (planoRenovacao == null) {
+      return;
+    }
+    setValor((current) => (current === '' ? moneyInput(planoRenovacao) : current));
+  }, [contrato, planos]);
+
   const ativo = contrato?.status === 'ATIVO';
   const plano = planos.find((item) => item.id === contrato?.planoId);
   const vendedor = vendedores.find((item) => item.id === contrato?.vendedorId);
@@ -235,10 +246,17 @@ export function ContratoDetalhePage() {
                   <MoneyInput
                     value={valor}
                     disabled={!ativo}
-                    placeholder={contrato.valor != null ? moneyInput(contrato.valor) : undefined}
+                    placeholder={
+                      plano?.valorRenovacao == null && contrato.valor != null
+                        ? moneyInput(contrato.valor)
+                        : undefined
+                    }
                     onChange={setValor}
                   />
                 </Field>
+                {plano?.valorRenovacao != null ? (
+                  <p className="note wide">Preço de renovação do plano, já preenchido. Apagar o campo repete o valor deste contrato.</p>
+                ) : null}
                 <Field label="Código">
                   <input
                     value={codigo}
