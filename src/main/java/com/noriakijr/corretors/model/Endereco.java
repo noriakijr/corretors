@@ -28,6 +28,8 @@ public class Endereco implements Serializable, IEntity {
 
 	private String numero;
 
+	private String cep;
+
 	private String latitude;
 
 	private String longitude;
@@ -87,6 +89,14 @@ public class Endereco implements Serializable, IEntity {
 
 	public void setNumero(String numero) {
 		this.numero = numero;
+	}
+
+	public String getCep() {
+		return cep;
+	}
+
+	public void setCep(String cep) {
+		this.cep = cep;
 	}
 
 	public String getLatitude() {

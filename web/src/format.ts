@@ -52,6 +52,112 @@ export function digitsOnly(value: string): string {
   return value.replace(/\D/g, '');
 }
 
+export function takeDigits(value: string, max: number): string {
+  return digitsOnly(value).slice(0, max);
+}
+
+export function maskDocumento(value: string): string {
+  const digits = takeDigits(value, 11);
+  let masked = digits.slice(0, 3);
+  if (digits.length > 3) {
+    masked += `.${digits.slice(3, 6)}`;
+  }
+  if (digits.length > 6) {
+    masked += `.${digits.slice(6, 9)}`;
+  }
+  if (digits.length > 9) {
+    masked += `-${digits.slice(9)}`;
+  }
+  return masked;
+}
+
+export function maskPhone(value: string): string {
+  const digits = takeDigits(value, 11);
+  if (!digits) {
+    return '';
+  }
+  if (digits.length <= 2) {
+    return `(${digits}`;
+  }
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  if (digits.length <= 10) {
+    return rest.length <= 4 ? `(${ddd}) ${rest}` : `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  }
+  return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+}
+
+export function maskCep(value: string): string {
+  const digits = takeDigits(value, 8);
+  if (digits.length <= 5) {
+    return digits;
+  }
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+export function formatDocumento(value: string | null | undefined): string {
+  if (!value || value.trim().length === 0) {
+    return '—';
+  }
+  const digits = digitsOnly(value);
+  if (digits.length === 11 && /^[\d.\-\s]+$/.test(value.trim())) {
+    return maskDocumento(digits);
+  }
+  return value;
+}
+
+export function formatPhone(value: string | null | undefined): string {
+  if (!value || value.trim().length === 0) {
+    return '—';
+  }
+  const digits = digitsOnly(value);
+  if ((digits.length === 10 || digits.length === 11) && /^[\d()\-\s]+$/.test(value.trim())) {
+    return maskPhone(digits);
+  }
+  return value;
+}
+
+export function formatCep(value: string | null | undefined): string {
+  if (!value || value.trim().length === 0) {
+    return '—';
+  }
+  const digits = digitsOnly(value);
+  if (digits.length === 8 && /^[\d\-\s]+$/.test(value.trim())) {
+    return maskCep(digits);
+  }
+  return value;
+}
+
+export const UFS = [
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
+] as const;
+
 export function toApiDateTime(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {

@@ -41,8 +41,8 @@ public class TitularController {
 	public TitularResponse create(@Valid @RequestBody TitularRequest request) {
 		Titular titular = new Titular();
 		titular.setNome(request.nome().trim());
-		titular.setCpf(request.cpf());
-		titular.setRg(request.rg());
+		titular.setCpf(digitsOrText(request.cpf()));
+		titular.setRg(digitsOrText(request.rg()));
 		titular.setDtNasc(request.dtNasc());
 		titular.setCartaoEnv(request.cartaoEnv());
 		titular.setSeguroVidaEnv(request.seguroVidaEnv());
@@ -55,10 +55,10 @@ public class TitularController {
 			return null;
 		}
 		Contato contato = new Contato();
-		contato.setTelFixo(request.telFixo());
-		contato.setTelComercial(request.telComercial());
-		contato.setTelFax(request.telFax());
-		contato.setCelular(request.celular());
+		contato.setTelFixo(digitsOrText(request.telFixo()));
+		contato.setTelComercial(digitsOrText(request.telComercial()));
+		contato.setTelFax(digitsOrText(request.telFax()));
+		contato.setCelular(digitsOrText(request.celular()));
 		contato.setEmail(request.email());
 		contato.setEndereco(toEndereco(request.endereco()));
 		return contato;
@@ -75,9 +75,24 @@ public class TitularController {
 		endereco.setBairro(request.bairro());
 		endereco.setRua(request.rua());
 		endereco.setNumero(request.numero());
+		endereco.setCep(digitsOrText(request.cep()));
 		endereco.setLatitude(request.latitude());
 		endereco.setLongitude(request.longitude());
 		return endereco;
+	}
+
+	private static String digitsOrText(String value) {
+		if (value == null || value.isBlank()) {
+			return value;
+		}
+		String trimmed = value.trim();
+		boolean punctuationOnly = trimmed.chars().allMatch(ch -> Character.isDigit(ch) || ch == '.' || ch == '-'
+				|| ch == '(' || ch == ')' || Character.isWhitespace(ch));
+		if (!punctuationOnly) {
+			return trimmed;
+		}
+		String digits = trimmed.replaceAll("\\D", "");
+		return digits.isEmpty() ? trimmed : digits;
 	}
 
 }

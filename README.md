@@ -87,7 +87,7 @@ curl -s -X POST http://localhost:8080/api/vendedores \
 
 curl -s -X POST http://localhost:8080/api/titulares \
   -H 'Content-Type: application/json' \
-  -d '{"nome":"Ana Souza","cpf":"12345678901","contato":{"celular":"31999998888","endereco":{"cidade":"Belo Horizonte"}}}'
+  -d '{"nome":"Ana Souza","cpf":"12345678901","contato":{"celular":"31999998888","endereco":{"cidade":"Belo Horizonte","cep":"30130010"}}}'
 
 curl -s -X POST http://localhost:8080/api/contratos \
   -H 'Content-Type: application/json' \

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { createTitular, errorMessage } from '../api.ts';
 import type { ContatoInput, EnderecoInput } from '../api.ts';
-import { filled } from '../format.ts';
-import { DigitsInput, ErrorBanner, Field } from '../components/ui.tsx';
+import { filled, maskCep, maskDocumento, maskPhone, UFS } from '../format.ts';
+import { DigitsInput, ErrorBanner, Field, MaskInput } from '../components/ui.tsx';
 
 type FormState = {
   nome: string;
@@ -25,6 +25,7 @@ type FormState = {
   bairro: string;
   rua: string;
   numero: string;
+  cep: string;
 };
 
 const initial: FormState = {
@@ -45,6 +46,7 @@ const initial: FormState = {
   bairro: '',
   rua: '',
   numero: '',
+  cep: '',
 };
 
 function enderecoOf(form: FormState): EnderecoInput | undefined {
@@ -55,6 +57,7 @@ function enderecoOf(form: FormState): EnderecoInput | undefined {
     bairro: filled(form.bairro),
     rua: filled(form.rua),
     numero: filled(form.numero),
+    cep: filled(form.cep),
   };
   if (Object.values(endereco).every((value) => value === undefined)) {
     return undefined;
@@ -89,6 +92,7 @@ export function TitularNovoPage() {
   const [form, setForm] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cepNote, setCepNote] = useState<string | null>(null);
 
   function setText(key: Exclude<keyof FormState, 'cartaoEnv' | 'seguroVidaEnv'>) {
     return (event: { target: { value: string } }) => {
@@ -96,11 +100,61 @@ export function TitularNovoPage() {
     };
   }
 
-  function setDigits(key: 'cpf' | 'telFixo' | 'telComercial' | 'telFax' | 'celular' | 'numero') {
+  function setDigits(
+    key: 'cpf' | 'rg' | 'telFixo' | 'telComercial' | 'telFax' | 'celular' | 'numero' | 'cep',
+  ) {
     return (value: string) => {
       setForm((current) => ({ ...current, [key]: value }));
     };
   }
+
+  useEffect(() => {
+    if (form.cep.length !== 8) {
+      setCepNote(null);
+      return;
+    }
+    let cancelled = false;
+    setCepNote('Buscando CEP…');
+    fetch(`https://viacep.com.br/ws/${form.cep}/json/`)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('cep');
+        }
+        return response.json() as Promise<{
+          erro?: boolean;
+          logradouro?: string;
+          bairro?: string;
+          localidade?: string;
+          uf?: string;
+        }>;
+      })
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+        if (data.erro) {
+          setCepNote('CEP não encontrado. O endereço continua editável.');
+          return;
+        }
+        setForm((current) => ({
+          ...current,
+          rua: data.logradouro?.trim() || current.rua,
+          bairro: data.bairro?.trim() || current.bairro,
+          cidade: data.localidade?.trim() || current.cidade,
+          estado: data.uf?.trim() || current.estado,
+          pais: current.pais.trim() ? current.pais : 'Brasil',
+        }));
+        setCepNote(null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCepNote('Não foi possível consultar o CEP. O endereço continua editável.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.cep]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -148,10 +202,10 @@ export function TitularNovoPage() {
             <input value={form.nome} onChange={setText('nome')} autoComplete="name" />
           </Field>
           <Field label="CPF">
-            <DigitsInput value={form.cpf} onChange={setDigits('cpf')} />
+            <MaskInput value={form.cpf} onChange={setDigits('cpf')} mask={maskDocumento} maxDigits={11} />
           </Field>
           <Field label="RG">
-            <input value={form.rg} onChange={setText('rg')} autoComplete="off" />
+            <MaskInput value={form.rg} onChange={setDigits('rg')} mask={maskDocumento} maxDigits={11} />
           </Field>
           <Field label="Data de nascimento">
             <input type="date" value={form.dtNasc} onChange={setText('dtNasc')} />
@@ -180,16 +234,16 @@ export function TitularNovoPage() {
         <h2>Contato</h2>
         <div className="form-grid">
           <Field label="Telefone fixo">
-            <DigitsInput value={form.telFixo} onChange={setDigits('telFixo')} />
+            <MaskInput value={form.telFixo} onChange={setDigits('telFixo')} mask={maskPhone} maxDigits={11} />
           </Field>
           <Field label="Telefone comercial">
-            <DigitsInput value={form.telComercial} onChange={setDigits('telComercial')} />
+            <MaskInput value={form.telComercial} onChange={setDigits('telComercial')} mask={maskPhone} maxDigits={11} />
           </Field>
           <Field label="Fax">
-            <DigitsInput value={form.telFax} onChange={setDigits('telFax')} />
+            <MaskInput value={form.telFax} onChange={setDigits('telFax')} mask={maskPhone} maxDigits={11} />
           </Field>
           <Field label="Celular">
-            <DigitsInput value={form.celular} onChange={setDigits('celular')} />
+            <MaskInput value={form.celular} onChange={setDigits('celular')} mask={maskPhone} maxDigits={11} />
           </Field>
           <Field label="E-mail" wide>
             <input type="email" value={form.email} onChange={setText('email')} autoComplete="email" />
@@ -197,11 +251,22 @@ export function TitularNovoPage() {
         </div>
         <h2>Endereço</h2>
         <div className="form-grid">
+          <Field label="CEP">
+            <MaskInput value={form.cep} onChange={setDigits('cep')} mask={maskCep} maxDigits={8} />
+          </Field>
+          {cepNote ? <p className="note wide">{cepNote}</p> : null}
           <Field label="País">
             <input value={form.pais} onChange={setText('pais')} />
           </Field>
           <Field label="Estado">
-            <input value={form.estado} onChange={setText('estado')} />
+            <select value={form.estado} onChange={setText('estado')}>
+              <option value="">Selecione</option>
+              {UFS.map((uf) => (
+                <option key={uf} value={uf}>
+                  {uf}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Cidade">
             <input value={form.cidade} onChange={setText('cidade')} />

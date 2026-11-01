@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { errorMessage, listContratosByTitular, listPlanos, listTitulares } from '../api.ts';
 import type { Contrato, Plano, Titular } from '../api.ts';
-import { formatDate, formatDateTime, formatMoney, labelOrId, textOrDash, yesNo } from '../format.ts';
+import { formatCep, formatDate, formatDateTime, formatDocumento, formatMoney, formatPhone, labelOrId, textOrDash, yesNo } from '../format.ts';
 import { ErrorBanner, OkBanner, StatusBadge } from '../components/ui.tsx';
 
 function parseId(value: string | undefined): number | null {
@@ -121,9 +121,9 @@ export function TitularFichaPage() {
               <dt>Nome</dt>
               <dd>{titular.nome}</dd>
               <dt>CPF</dt>
-              <dd>{textOrDash(titular.cpf)}</dd>
+              <dd>{formatDocumento(titular.cpf)}</dd>
               <dt>RG</dt>
-              <dd>{textOrDash(titular.rg)}</dd>
+              <dd>{formatDocumento(titular.rg)}</dd>
               <dt>Nascimento</dt>
               <dd>{formatDate(titular.dtNasc)}</dd>
               <dt>Cartão enviado</dt>
@@ -131,19 +131,20 @@ export function TitularFichaPage() {
               <dt>Seguro de vida enviado</dt>
               <dd>{yesNo(titular.seguroVidaEnv)}</dd>
               <dt>Telefone fixo</dt>
-              <dd>{textOrDash(contato?.telFixo)}</dd>
+              <dd>{formatPhone(contato?.telFixo)}</dd>
               <dt>Comercial</dt>
-              <dd>{textOrDash(contato?.telComercial)}</dd>
+              <dd>{formatPhone(contato?.telComercial)}</dd>
               <dt>Fax</dt>
-              <dd>{textOrDash(contato?.telFax)}</dd>
+              <dd>{formatPhone(contato?.telFax)}</dd>
               <dt>Celular</dt>
-              <dd>{textOrDash(contato?.celular)}</dd>
+              <dd>{formatPhone(contato?.celular)}</dd>
               <dt>E-mail</dt>
               <dd>{textOrDash(contato?.email)}</dd>
               <dt>Endereço</dt>
               <dd>
                 {endereco
                   ? [
+                      formatCep(endereco.cep) === '—' ? null : formatCep(endereco.cep),
                       endereco.rua,
                       endereco.numero,
                       endereco.bairro,

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { ContratoStatus } from '../api.ts';
-import { digitsOnly, moneyInput, parseDecimal, sanitizeMoneyTyping } from '../format.ts';
+import { digitsOnly, moneyInput, parseDecimal, sanitizeMoneyTyping, takeDigits } from '../format.ts';
 
 const STATUS_LABEL: Record<ContratoStatus, string> = {
   ATIVO: 'Ativo',
@@ -98,6 +98,27 @@ export function DigitsInput({
       inputMode="numeric"
       autoComplete="off"
       onChange={(event) => onChange(digitsOnly(event.target.value))}
+    />
+  );
+}
+
+export function MaskInput({
+  value,
+  onChange,
+  mask,
+  maxDigits,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  mask: (value: string) => string;
+  maxDigits: number;
+}) {
+  return (
+    <input
+      value={mask(value)}
+      inputMode="numeric"
+      autoComplete="off"
+      onChange={(event) => onChange(takeDigits(event.target.value, maxDigits))}
     />
   );
 }

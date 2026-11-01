@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { errorMessage, listTitulares } from '../api.ts';
 import type { Titular } from '../api.ts';
-import { textOrDash } from '../format.ts';
+import { formatDocumento, formatPhone, textOrDash } from '../format.ts';
 import { ErrorBanner } from '../components/ui.tsx';
 
 function digits(value: string): string {
@@ -95,8 +95,8 @@ export function TitularesPage() {
                   <td>
                     <Link to={`/titulares/${titular.id}`}>{titular.nome}</Link>
                   </td>
-                  <td>{textOrDash(titular.cpf)}</td>
-                  <td>{textOrDash(titular.contato?.celular)}</td>
+                  <td>{formatDocumento(titular.cpf)}</td>
+                  <td>{formatPhone(titular.contato?.celular)}</td>
                   <td>{textOrDash(titular.contato?.endereco?.cidade)}</td>
                 </tr>
               ))}

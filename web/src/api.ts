@@ -25,6 +25,7 @@ export type Endereco = {
   bairro: string | null;
   rua: string | null;
   numero: string | null;
+  cep: string | null;
   latitude: string | null;
   longitude: string | null;
 };
@@ -36,6 +37,7 @@ export type EnderecoInput = {
   bairro?: string;
   rua?: string;
   numero?: string;
+  cep?: string;
 };
 
 export type Contato = {
