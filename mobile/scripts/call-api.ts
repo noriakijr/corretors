@@ -1,8 +1,9 @@
-import { createPlano, createTitular, listPlanos, listTitulares } from '../src/api.ts';
+import { createPlano, createSeguradora, createTitular, listPlanos, listTitulares } from '../src/api.ts';
 
 const stamp = Date.now();
 
-const plano = await createPlano({
+const seguradora = await createSeguradora(`Seguradora ${stamp}`);
+const plano = await createPlano(seguradora.id, {
   nome: `Plano ${stamp}`,
   descricao: 'criado pelo app',
 });

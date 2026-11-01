@@ -22,14 +22,17 @@ class PlanoPrecoApiTest {
 
 	private RestClient client;
 
+	private long seguradoraId;
+
 	@BeforeEach
 	void setUp() {
 		client = RestClient.builder().baseUrl("http://127.0.0.1:" + port).build();
+		seguradoraId = idOf(post("/api/seguradoras", Map.of("nome", "Seguradora Preco")));
 	}
 
 	@Test
 	void keepsFullPriceHistoryNewestFirstAndIgnoresSaleSnapshot() {
-		Map<String, Object> plano = post("/api/planos", Map.of(
+		Map<String, Object> plano = postPlano(Map.of(
 				"nome", "Plano Familia Preco",
 				"descricao", "Com historico",
 				"valor", 100.0));
@@ -68,7 +71,7 @@ class PlanoPrecoApiTest {
 
 	@Test
 	void planoWithoutPriceHasEmptyHistory() {
-		Map<String, Object> plano = post("/api/planos", Map.of("nome", "Plano Sem Preco"));
+		Map<String, Object> plano = postPlano(Map.of("nome", "Plano Sem Preco"));
 		assertThat(plano.get("valor")).isNull();
 		assertThat(plano.get("valorRenovacao")).isNull();
 
@@ -78,7 +81,7 @@ class PlanoPrecoApiTest {
 
 	@Test
 	void renewalPriceIsOptionalAndKeptInHistory() {
-		Map<String, Object> semRenovacao = post("/api/planos", Map.of(
+		Map<String, Object> semRenovacao = postPlano(Map.of(
 				"nome", "Plano Sem Renovacao",
 				"valor", 80.0));
 		assertThat(semRenovacao.get("valorRenovacao")).isNull();
@@ -86,7 +89,7 @@ class PlanoPrecoApiTest {
 		assertThat(historicoSem).hasSize(1);
 		assertThat(historicoSem.get(0).get("renovacao")).isEqualTo(false);
 
-		Map<String, Object> comRenovacao = post("/api/planos", Map.of(
+		Map<String, Object> comRenovacao = postPlano(Map.of(
 				"nome", "Plano Com Renovacao",
 				"valor", 100.0,
 				"valorRenovacao", 120.0));
@@ -122,7 +125,7 @@ class PlanoPrecoApiTest {
 	@Test
 	void rejectsNegativePriceAndMissingPlano() {
 		var invalid = client.post()
-				.uri("/api/planos")
+				.uri("/api/seguradoras/" + seguradoraId + "/planos")
 				.contentType(MediaType.APPLICATION_JSON)
 				.body(Map.of("nome", "Plano Negativo", "valor", -1))
 				.retrieve()
@@ -141,6 +144,10 @@ class PlanoPrecoApiTest {
 				})
 				.toEntity(String.class);
 		assertThat(missing.getStatusCode().value()).isEqualTo(404);
+	}
+
+	private Map<String, Object> postPlano(Map<String, Object> body) {
+		return post("/api/seguradoras/" + seguradoraId + "/planos", body);
 	}
 
 	private Map<String, Object> post(String path, Map<String, Object> body) {

@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.noriakijr.corretors.service.PlanoService;
 import com.noriakijr.corretors.web.dto.PlanoPrecoRequest;
 import com.noriakijr.corretors.web.dto.PlanoPrecoResponse;
-import com.noriakijr.corretors.web.dto.PlanoRequest;
 import com.noriakijr.corretors.web.dto.PlanoResponse;
 
 import jakarta.validation.Valid;
@@ -32,12 +31,6 @@ public class PlanoController {
 	@GetMapping
 	public List<PlanoResponse> list() {
 		return planos.list();
-	}
-
-	@PostMapping
-	@ResponseStatus(HttpStatus.CREATED)
-	public PlanoResponse create(@Valid @RequestBody PlanoRequest request) {
-		return planos.create(request);
 	}
 
 	@GetMapping("/{id}/precos")

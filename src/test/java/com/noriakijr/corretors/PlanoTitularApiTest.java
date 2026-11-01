@@ -22,9 +22,20 @@ class PlanoTitularApiTest {
 
 	private RestClient client;
 
+	private long seguradoraId;
+
 	@BeforeEach
 	void setUp() {
 		client = RestClient.builder().baseUrl("http://127.0.0.1:" + port).build();
+		Map<String, Object> seguradora = client.post()
+				.uri("/api/seguradoras")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of("nome", "Seguradora Titular"))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+		assertThat(seguradora).isNotNull();
+		seguradoraId = ((Number) seguradora.get("id")).longValue();
 	}
 
 	@Test
@@ -32,7 +43,7 @@ class PlanoTitularApiTest {
 		List<Map<String, Object>> before = list("/api/planos");
 
 		Map<String, Object> created = client.post()
-				.uri("/api/planos")
+				.uri("/api/seguradoras/" + seguradoraId + "/planos")
 				.contentType(MediaType.APPLICATION_JSON)
 				.body(Map.of("nome", "Plano Essencial", "descricao", "Cobertura basica"))
 				.retrieve()
@@ -43,6 +54,8 @@ class PlanoTitularApiTest {
 		assertThat(created.get("id")).isNotNull();
 		assertThat(created.get("nome")).isEqualTo("Plano Essencial");
 		assertThat(created.get("descricao")).isEqualTo("Cobertura basica");
+		assertThat(((Number) created.get("seguradoraId")).longValue()).isEqualTo(seguradoraId);
+		assertThat(created.get("seguradoraNome")).isEqualTo("Seguradora Titular");
 
 		List<Map<String, Object>> after = list("/api/planos");
 		assertThat(after).hasSize(before.size() + 1);
@@ -130,7 +143,7 @@ class PlanoTitularApiTest {
 	@Test
 	void rejectsPlanoWithoutNome() {
 		var response = client.post()
-				.uri("/api/planos")
+				.uri("/api/seguradoras/" + seguradoraId + "/planos")
 				.contentType(MediaType.APPLICATION_JSON)
 				.body(Map.of("descricao", "sem nome"))
 				.retrieve()

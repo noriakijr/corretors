@@ -14,6 +14,7 @@ import {
 
 import {
   createPlano,
+  createSeguradora,
   createTitular,
   listContratosByTitular,
   listPlanos,
@@ -40,6 +41,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [planoNome, setPlanoNome] = useState('');
+  const [seguradoraNome, setSeguradoraNome] = useState('');
   const [planoDescricao, setPlanoDescricao] = useState('');
   const [titularNome, setTitularNome] = useState('');
   const [titularCpf, setTitularCpf] = useState('');
@@ -132,6 +134,11 @@ export default function App() {
 
   async function onCreatePlano() {
     const nome = planoNome.trim();
+    const seguradora = seguradoraNome.trim();
+    if (!seguradora) {
+      setError('Informe a seguradora do plano.');
+      return;
+    }
     if (!nome) {
       setError('Informe o nome do plano.');
       return;
@@ -139,10 +146,12 @@ export default function App() {
     setSaving(true);
     setError(null);
     try {
-      await createPlano({
+      const created = await createSeguradora(seguradora);
+      await createPlano(created.id, {
         nome,
         descricao: planoDescricao.trim() || undefined,
       });
+      setSeguradoraNome('');
       setPlanoNome('');
       setPlanoDescricao('');
       await load();
@@ -230,6 +239,13 @@ export default function App() {
             {plano.descricao ? <Text style={styles.cardBody}>{plano.descricao}</Text> : null}
           </View>
         ))}
+        <TextInput
+          style={styles.input}
+          value={seguradoraNome}
+          onChangeText={setSeguradoraNome}
+          placeholder="Seguradora"
+          placeholderTextColor="#8a8175"
+        />
         <TextInput
           style={styles.input}
           value={planoNome}

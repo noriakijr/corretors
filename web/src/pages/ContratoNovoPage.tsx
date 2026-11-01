@@ -221,14 +221,14 @@ export function ContratoNovoPage() {
                 <option value="">Selecione o plano</option>
                 {planos.map((plano) => (
                   <option key={plano.id} value={plano.id}>
-                    {plano.nome}
+                    {plano.seguradoraNome ? `${plano.nome} — ${plano.seguradoraNome}` : plano.nome}
                   </option>
                 ))}
               </select>
             </Field>
             {planos.length === 0 ? (
               <p className="note wide">
-                Nenhum plano cadastrado. <Link to="/planos">Criar um plano</Link> antes de vender.
+                Nenhum plano cadastrado. <Link to="/seguradoras">Cadastrar uma seguradora</Link> antes de vender.
               </p>
             ) : null}
             <Field label="Vendedor que fechou o contrato" wide>
