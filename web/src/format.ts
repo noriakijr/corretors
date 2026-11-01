@@ -245,6 +245,42 @@ export function planoRotulo(
   return base;
 }
 
+export function hojeIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+export function plusYearsIso(isoDate: string, years: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const date = new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+  date.setFullYear(date.getFullYear() + years);
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const nextDay = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${nextMonth}-${nextDay}`;
+}
+
+export function periodoVigente(inicio: string | null | undefined, fim: string | null | undefined): boolean {
+  if (!inicio || !fim) {
+    return false;
+  }
+  const dataInicio = inicio.slice(0, 10);
+  const dataFim = fim.slice(0, 10);
+  const hoje = hojeIso();
+  return dataInicio <= hoje && hoje <= dataFim;
+}
+
+export function contadorDependentes(usados: number, limite: number | null | undefined): string {
+  if (limite === undefined) {
+    return String(usados);
+  }
+  if (limite === null) {
+    return `${usados} / sem limite`;
+  }
+  return `${usados} / ${limite}`;
+}
+
 export function labelOrId(nome: string | null | undefined, id: number | null | undefined, kind: string): string {
   if (nome && nome.trim().length > 0) {
     return id == null ? nome : `${nome} (${id})`;

@@ -6,6 +6,7 @@ export type Plano = {
   valorRenovacao: number | null;
   seguradoraId: number | null;
   seguradoraNome: string | null;
+  limiteDependentes: number | null;
 };
 
 export type Seguradora = {
@@ -18,6 +19,7 @@ export type PlanoInput = {
   descricao?: string;
   valor?: number;
   valorRenovacao?: number;
+  limiteDependentes?: number | null;
 };
 
 export type PlanoPreco = {
@@ -120,6 +122,20 @@ export type Contrato = {
   contratoAnteriorId: number | null;
 };
 
+export type Dependente = {
+  id: number;
+  nome: string;
+  parentesco: string;
+  dtNasc: string;
+  contratoId: number | null;
+};
+
+export type DependenteInput = {
+  nome: string;
+  parentesco: string;
+  dtNasc: string;
+};
+
 export type ContratoInput = {
   titularId: number;
   vendedorId: number;
@@ -134,6 +150,7 @@ export type ContratoInput = {
   tipoPag?: PagamentoType;
   vlrDesconto?: number;
   quantidadeParcelas?: number;
+  dependentes?: DependenteInput[];
 };
 
 export type RenovarContratoInput = {
@@ -241,6 +258,13 @@ export function createPlano(seguradoraId: number, input: PlanoInput): Promise<Pl
   });
 }
 
+export function updatePlanoLimite(planoId: number, limiteDependentes: number | null): Promise<Plano> {
+  return request<Plano>(`/api/planos/${planoId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ limiteDependentes }),
+  });
+}
+
 export function listPrecos(planoId: number): Promise<PlanoPreco[]> {
   return request<PlanoPreco[]>(`/api/planos/${planoId}/precos`);
 }
@@ -293,5 +317,33 @@ export function renewContrato(id: number, input: RenovarContratoInput): Promise<
   return request<Contrato>(`/api/contratos/${id}/renovar`, {
     method: 'POST',
     body: JSON.stringify(input),
+  });
+}
+
+export function listDependentes(contratoId: number): Promise<Dependente[]> {
+  return request<Dependente[]>(`/api/contratos/${contratoId}/dependentes`);
+}
+
+export function createDependente(contratoId: number, input: DependenteInput): Promise<Dependente> {
+  return request<Dependente>(`/api/contratos/${contratoId}/dependentes`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateDependente(
+  contratoId: number,
+  dependenteId: number,
+  input: DependenteInput,
+): Promise<Dependente> {
+  return request<Dependente>(`/api/contratos/${contratoId}/dependentes/${dependenteId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteDependente(contratoId: number, dependenteId: number): Promise<void> {
+  return request<void>(`/api/contratos/${contratoId}/dependentes/${dependenteId}`, {
+    method: 'DELETE',
   });
 }

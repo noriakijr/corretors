@@ -55,6 +55,7 @@ public class PlanoService {
 		Plano plano = new Plano();
 		plano.setNome(request.nome().trim());
 		plano.setDescricao(request.descricao());
+		plano.setLimiteDependentes(request.limiteDependentes());
 		plano.setSeguradora(seguradora);
 		plano = planos.save(plano);
 		Float valor = null;
@@ -66,6 +67,16 @@ public class PlanoService {
 			valorRenovacao = saveCatalogPrice(plano, request.valorRenovacao(), true).getValor();
 		}
 		return PlanoResponse.from(plano, valor, valorRenovacao);
+	}
+
+	@Transactional
+	public PlanoResponse updateLimite(Long planoId, Integer limiteDependentes) {
+		Plano plano = requirePlano(planoId);
+		plano.setLimiteDependentes(limiteDependentes);
+		plano = planos.save(plano);
+		Map<Long, Float> atuais = currentPrices(false);
+		Map<Long, Float> renovacoes = currentPrices(true);
+		return PlanoResponse.from(plano, atuais.get(plano.getId()), renovacoes.get(plano.getId()));
 	}
 
 	@Transactional(readOnly = true)

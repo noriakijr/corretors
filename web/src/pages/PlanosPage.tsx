@@ -2,10 +2,29 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { addPreco, createPlano, errorMessage, getSeguradora, listPlanosDaSeguradora, listPrecos } from '../api.ts';
+import {
+  addPreco,
+  createPlano,
+  errorMessage,
+  getSeguradora,
+  listPlanosDaSeguradora,
+  listPrecos,
+  updatePlanoLimite,
+} from '../api.ts';
 import type { Plano, PlanoPreco } from '../api.ts';
 import { filled, formatDateTime, formatMoney, parseDecimal, textOrDash } from '../format.ts';
-import { ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
+import { DigitsInput, ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
+
+function parseLimite(value: string): number | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return undefined;
+  }
+  return Number(trimmed);
+}
 
 export function PlanosPage() {
   const params = useParams();
@@ -19,6 +38,8 @@ export function PlanosPage() {
   const [descricao, setDescricao] = useState('');
   const [precoInicial, setPrecoInicial] = useState('');
   const [renovacaoInicial, setRenovacaoInicial] = useState('');
+  const [limiteInicial, setLimiteInicial] = useState('');
+  const [limiteEdicao, setLimiteEdicao] = useState('');
   const [novoPreco, setNovoPreco] = useState('');
   const [novaRenovacao, setNovaRenovacao] = useState('');
   const [historico, setHistorico] = useState<PlanoPreco[]>([]);
@@ -26,6 +47,7 @@ export function PlanosPage() {
   const [saving, setSaving] = useState(false);
   const [savingPreco, setSavingPreco] = useState(false);
   const [savingRenovacao, setSavingRenovacao] = useState(false);
+  const [savingLimite, setSavingLimite] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,6 +126,11 @@ export function PlanosPage() {
     };
   }, [selectedId]);
 
+  useEffect(() => {
+    const current = planos.find((plano) => plano.id === selectedId);
+    setLimiteEdicao(current?.limiteDependentes == null ? '' : String(current.limiteDependentes));
+  }, [selectedId]);
+
   const needle = query.trim().toLowerCase();
   const visible = needle
     ? planos.filter((plano) => plano.nome.toLowerCase().includes(needle))
@@ -127,6 +154,11 @@ export function PlanosPage() {
       setError('Informe o preço de renovação com números, no formato 1.234,56, ou deixe em branco.');
       return;
     }
+    const limite = parseLimite(limiteInicial);
+    if (limite === undefined) {
+      setError('Informe o limite de dependentes com um número inteiro a partir de zero, ou deixe em branco.');
+      return;
+    }
     if (seguradoraId == null) {
       return;
     }
@@ -138,6 +170,7 @@ export function PlanosPage() {
         descricao: filled(descricao),
         valor: preco,
         valorRenovacao: renovacao,
+        limiteDependentes: limite,
       });
       setPlanos((current) => [...current, created]);
       setSelectedId(created.id);
@@ -145,6 +178,7 @@ export function PlanosPage() {
       setDescricao('');
       setPrecoInicial('');
       setRenovacaoInicial('');
+      setLimiteInicial('');
     } catch (cause: unknown) {
       setError(errorMessage(cause));
     } finally {
@@ -206,6 +240,29 @@ export function PlanosPage() {
     }
   }
 
+  async function onChangeLimite(event: FormEvent) {
+    event.preventDefault();
+    if (selected == null) {
+      return;
+    }
+    const limite = parseLimite(limiteEdicao);
+    if (limite === undefined) {
+      setError('Informe o limite de dependentes com um número inteiro a partir de zero, ou deixe em branco.');
+      return;
+    }
+    setSavingLimite(true);
+    setError(null);
+    try {
+      const saved = await updatePlanoLimite(selected.id, limite);
+      setPlanos((current) => current.map((plano) => (plano.id === selected.id ? saved : plano)));
+      setLimiteEdicao(saved.limiteDependentes == null ? '' : String(saved.limiteDependentes));
+    } catch (cause: unknown) {
+      setError(errorMessage(cause));
+    } finally {
+      setSavingLimite(false);
+    }
+  }
+
   const historicoVisivel = [...historico].sort((left, right) => {
     if (left.dtModif === right.dtModif) {
       return right.id - left.id;
@@ -260,6 +317,10 @@ export function PlanosPage() {
                   {' · '}
                   {plano.valor == null ? 'Sem preço' : formatMoney(plano.valor)}
                   {plano.valorRenovacao == null ? '' : ` · Renovação ${formatMoney(plano.valorRenovacao)}`}
+                  {' · '}
+                  {plano.limiteDependentes == null
+                    ? 'Sem limite de dependentes'
+                    : `Limite de dependentes: ${plano.limiteDependentes}`}
                 </p>
               </button>
             ))}
@@ -281,6 +342,10 @@ export function PlanosPage() {
               <Field label="Preço de renovação (R$)">
                 <MoneyInput value={renovacaoInicial} onChange={setRenovacaoInicial} />
               </Field>
+              <Field label="Limite de dependentes">
+                <DigitsInput value={limiteInicial} onChange={setLimiteInicial} />
+              </Field>
+              <p className="note">Em branco não limita a quantidade de dependentes do plano.</p>
               <div className="actions">
                 <button className="button" type="submit" disabled={saving}>
                   {saving ? 'Salvando…' : 'Criar plano'}
@@ -303,7 +368,20 @@ export function PlanosPage() {
                   <dd>{formatMoney(selected.valor)}</dd>
                   <dt>Preço de renovação</dt>
                   <dd>{formatMoney(selected.valorRenovacao)}</dd>
+                  <dt>Limite de dependentes</dt>
+                  <dd>{selected.limiteDependentes == null ? 'Sem limite' : selected.limiteDependentes}</dd>
                 </dl>
+                <form className="stack" noValidate onSubmit={onChangeLimite}>
+                  <Field label="Limite de dependentes">
+                    <DigitsInput value={limiteEdicao} onChange={setLimiteEdicao} />
+                  </Field>
+                  <p className="note">Em branco remove o limite. O valor vale para as vendas deste plano.</p>
+                  <div className="actions">
+                    <button className="button" type="submit" disabled={savingLimite}>
+                      {savingLimite ? 'Salvando…' : 'Salvar limite'}
+                    </button>
+                  </div>
+                </form>
                 <form className="stack" noValidate onSubmit={onChangePrice}>
                   <Field label="Novo preço (R$)">
                     <MoneyInput value={novoPreco} onChange={setNovoPreco} />
