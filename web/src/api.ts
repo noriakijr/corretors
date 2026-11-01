@@ -1,3 +1,19 @@
+export type TipoComissao = 'PERCENTUAL' | 'VALOR_FIXO';
+
+export type ComissaoVendedor = {
+  vendedorId: number;
+  vendedorNome: string | null;
+  tipoComissao: TipoComissao;
+  percentual: number | null;
+  valorFixo: number | null;
+};
+
+export type ComissaoInput = {
+  tipoComissao?: TipoComissao | null;
+  percentual?: number | null;
+  valorFixo?: number | null;
+};
+
 export type Plano = {
   id: number;
   nome: string;
@@ -7,6 +23,10 @@ export type Plano = {
   seguradoraId: number | null;
   seguradoraNome: string | null;
   limiteDependentes: number | null;
+  tipoComissao: TipoComissao | null;
+  percentual: number | null;
+  valorFixo: number | null;
+  excecoes: ComissaoVendedor[];
 };
 
 export type Seguradora = {
@@ -20,6 +40,9 @@ export type PlanoInput = {
   valor?: number;
   valorRenovacao?: number;
   limiteDependentes?: number | null;
+  tipoComissao?: TipoComissao;
+  percentual?: number;
+  valorFixo?: number;
 };
 
 export type PlanoPreco = {
@@ -120,6 +143,8 @@ export type Contrato = {
   valor: number | null;
   pagamentoId: number | null;
   contratoAnteriorId: number | null;
+  valorComissao: number | null;
+  receitaCorretora: number | null;
 };
 
 export type Dependente = {
@@ -262,6 +287,26 @@ export function updatePlanoLimite(planoId: number, limiteDependentes: number | n
   return request<Plano>(`/api/planos/${planoId}`, {
     method: 'PUT',
     body: JSON.stringify({ limiteDependentes }),
+  });
+}
+
+export function saveComissaoPadrao(planoId: number, input: ComissaoInput): Promise<Plano> {
+  return request<Plano>(`/api/planos/${planoId}/comissao`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function saveComissaoVendedor(planoId: number, vendedorId: number, input: ComissaoInput): Promise<Plano> {
+  return request<Plano>(`/api/planos/${planoId}/comissoes/${vendedorId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteComissaoVendedor(planoId: number, vendedorId: number): Promise<Plano> {
+  return request<Plano>(`/api/planos/${planoId}/comissoes/${vendedorId}`, {
+    method: 'DELETE',
   });
 }
 

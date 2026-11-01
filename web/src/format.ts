@@ -281,6 +281,79 @@ export function contadorDependentes(usados: number, limite: number | null | unde
   return `${usados} / ${limite}`;
 }
 
+export type ModoComissao = 'PERCENTUAL' | 'VALOR_FIXO';
+
+export type RegraComissao = {
+  tipoComissao?: ModoComissao | null;
+  percentual?: number | null;
+  valorFixo?: number | null;
+};
+
+export type PlanoComComissao = RegraComissao & {
+  excecoes?: Array<RegraComissao & { vendedorId: number }>;
+};
+
+export type ComissaoCalculada = {
+  comissao: number;
+  receita: number;
+  erro?: string;
+};
+
+export function regraDoVendedor(
+  plano: PlanoComComissao | null | undefined,
+  vendedorId: number | null | undefined,
+): RegraComissao | null {
+  if (!plano) {
+    return null;
+  }
+  const excecao = plano.excecoes?.find((item) => item.vendedorId === vendedorId);
+  if (excecao) {
+    return excecao;
+  }
+  if (plano.tipoComissao === 'PERCENTUAL' || plano.tipoComissao === 'VALOR_FIXO') {
+    return plano;
+  }
+  return null;
+}
+
+export function calcularComissao(regra: RegraComissao | null, total: number): ComissaoCalculada {
+  const totalCents = Math.round(total * 100);
+  if (!regra?.tipoComissao) {
+    return { comissao: 0, receita: totalCents / 100 };
+  }
+  if (regra.tipoComissao === 'PERCENTUAL') {
+    const percentual = regra.percentual ?? 0;
+    if (percentual > 100) {
+      return {
+        comissao: 0,
+        receita: totalCents / 100,
+        erro: 'O percentual da comissão não pode passar de 100.',
+      };
+    }
+    const comissaoCents = Math.round((totalCents * percentual) / 100);
+    return { comissao: comissaoCents / 100, receita: (totalCents - comissaoCents) / 100 };
+  }
+  const fixoCents = Math.round((regra.valorFixo ?? 0) * 100);
+  if (fixoCents > totalCents) {
+    return {
+      comissao: fixoCents / 100,
+      receita: totalCents / 100,
+      erro: 'O valor fixo da comissão é maior que o total.',
+    };
+  }
+  return { comissao: fixoCents / 100, receita: (totalCents - fixoCents) / 100 };
+}
+
+export function rotuloRegra(regra: RegraComissao | null | undefined): string {
+  if (!regra?.tipoComissao) {
+    return 'Sem comissão';
+  }
+  if (regra.tipoComissao === 'PERCENTUAL') {
+    return `${(regra.percentual ?? 0).toLocaleString('pt-BR')}%`;
+  }
+  return formatMoney(regra.valorFixo);
+}
+
 export function labelOrId(nome: string | null | undefined, id: number | null | undefined, kind: string): string {
   if (nome && nome.trim().length > 0) {
     return id == null ? nome : `${nome} (${id})`;

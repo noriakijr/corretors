@@ -3,6 +3,8 @@ package com.noriakijr.corretors.model;
 import java.io.Serializable;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -25,6 +27,13 @@ public class Plano implements Serializable, IEntity {
 	private Seguradora seguradora;
 
 	private Integer limiteDependentes;
+
+	@Enumerated(EnumType.STRING)
+	private TipoComissao tipoComissao;
+
+	private Double percentualComissao;
+
+	private Double valorFixoComissao;
 
 	@Override
 	public Long getId() {
@@ -65,6 +74,30 @@ public class Plano implements Serializable, IEntity {
 
 	public void setLimiteDependentes(Integer limiteDependentes) {
 		this.limiteDependentes = limiteDependentes;
+	}
+
+	public TipoComissao getTipoComissao() {
+		return tipoComissao;
+	}
+
+	public void setTipoComissao(TipoComissao tipoComissao) {
+		this.tipoComissao = tipoComissao;
+	}
+
+	public Double getPercentualComissao() {
+		return percentualComissao;
+	}
+
+	public void setPercentualComissao(Double percentualComissao) {
+		this.percentualComissao = percentualComissao;
+	}
+
+	public Double getValorFixoComissao() {
+		return valorFixoComissao;
+	}
+
+	public void setValorFixoComissao(Double valorFixoComissao) {
+		this.valorFixoComissao = valorFixoComissao;
 	}
 
 }

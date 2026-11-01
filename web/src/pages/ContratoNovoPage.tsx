@@ -11,7 +11,20 @@ import {
   listVendedores,
 } from '../api.ts';
 import type { PagamentoType, Plano, Seguradora, Titular, Vendedor } from '../api.ts';
-import { filled, formatMoney, hojeIso, moneyInput, parseDecimal, parseParcelas, periodoVigente, planoPreco, plusYearsIso, toApiDateTime } from '../format.ts';
+import {
+  calcularComissao,
+  filled,
+  formatMoney,
+  hojeIso,
+  moneyInput,
+  parseDecimal,
+  parseParcelas,
+  periodoVigente,
+  planoPreco,
+  plusYearsIso,
+  regraDoVendedor,
+  toApiDateTime,
+} from '../format.ts';
 import { DependentesEditor } from '../components/DependentesEditor.tsx';
 import type { DependenteDraft } from '../components/DependentesEditor.tsx';
 import { DigitsInput, ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
@@ -190,6 +203,10 @@ export function ContratoNovoPage() {
       : base - descontoAplicado;
   const quantidade = parseParcelas(parcelas);
   const cadaParcela = total !== undefined && quantidade !== undefined ? total / quantidade : undefined;
+  const comissaoVenda =
+    planoSelecionado && vendedorId && total !== undefined && !Number.isNaN(total)
+      ? calcularComissao(regraDoVendedor(planoSelecionado, Number(vendedorId)), total)
+      : undefined;
 
   const aquisicaoEfetiva = dtAquisicao ? dtAquisicao.slice(0, 10) : hojeIso();
   const inicioEfetivo = dtInicio ? dtInicio.slice(0, 10) : aquisicaoEfetiva;
@@ -383,8 +400,21 @@ export function ContratoNovoPage() {
                     <dd>{formatMoney(cadaParcela)}</dd>
                   </div>
                 ) : null}
+                {comissaoVenda ? (
+                  <div>
+                    <dt>Comissão do vendedor</dt>
+                    <dd>{comissaoVenda.erro ? '—' : formatMoney(comissaoVenda.comissao)}</dd>
+                  </div>
+                ) : null}
+                {comissaoVenda ? (
+                  <div>
+                    <dt>Receita da corretora</dt>
+                    <dd>{comissaoVenda.erro ? '—' : formatMoney(comissaoVenda.receita)}</dd>
+                  </div>
+                ) : null}
               </dl>
             ) : null}
+            {comissaoVenda?.erro ? <p className="note wide">{comissaoVenda.erro}</p> : null}
             <Field label="Código">
               <input value={codigo} onChange={(event) => setCodigo(event.target.value)} />
             </Field>

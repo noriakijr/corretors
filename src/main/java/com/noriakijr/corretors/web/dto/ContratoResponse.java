@@ -19,7 +19,9 @@ public record ContratoResponse(
 		Long planoId,
 		Float valor,
 		Long pagamentoId,
-		Long contratoAnteriorId) {
+		Long contratoAnteriorId,
+		Double valorComissao,
+		Double receitaCorretora) {
 
 	public static ContratoResponse from(Contrato contrato) {
 		Long planoHistoricoId = contrato.getPlanoHistorico() != null ? contrato.getPlanoHistorico().getId() : null;
@@ -41,7 +43,9 @@ public record ContratoResponse(
 				planoId,
 				valor,
 				contrato.getPagamento() != null ? contrato.getPagamento().getId() : null,
-				contrato.getContratoAnterior() != null ? contrato.getContratoAnterior().getId() : null);
+				contrato.getContratoAnterior() != null ? contrato.getContratoAnterior().getId() : null,
+				contrato.getValorComissao(),
+				contrato.getReceitaCorretora());
 	}
 
 }

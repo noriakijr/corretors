@@ -39,6 +39,7 @@ public class ContratoService {
 	private final PagamentoRepository pagamentos;
 	private final ParcelaRepository parcelas;
 	private final DependenteService dependentes;
+	private final ComissaoService comissoes;
 
 	public ContratoService(
 			ContratoRepository contratos,
@@ -48,7 +49,8 @@ public class ContratoService {
 			PlanoHistoricoRepository historicos,
 			PagamentoRepository pagamentos,
 			ParcelaRepository parcelas,
-			DependenteService dependentes) {
+			DependenteService dependentes,
+			ComissaoService comissoes) {
 		this.contratos = contratos;
 		this.titulares = titulares;
 		this.vendedores = vendedores;
@@ -57,6 +59,7 @@ public class ContratoService {
 		this.pagamentos = pagamentos;
 		this.parcelas = parcelas;
 		this.dependentes = dependentes;
+		this.comissoes = comissoes;
 	}
 
 	@Transactional(readOnly = true)
@@ -108,6 +111,7 @@ public class ContratoService {
 		contrato.setVendedor(vendedor);
 		contrato.setPlanoHistorico(historico);
 		contrato.setPagamento(pagamento);
+		comissoes.aplicar(contrato, plano, vendedor, liquido);
 		contrato = contratos.save(contrato);
 		dependentes.attach(contrato, request.dependentes());
 		return ContratoResponse.from(contrato);
@@ -135,7 +139,8 @@ public class ContratoService {
 		LocalDateTime dtInicio = body.dtInicio() != null ? body.dtInicio() : agora;
 		LocalDateTime dtFim = body.dtFim() != null ? body.dtFim() : dtInicio.plusYears(1);
 
-		PlanoHistorico historico = snapshot(anterior.getPlanoHistorico().getPlano(), valor, agora);
+		Plano plano = anterior.getPlanoHistorico().getPlano();
+		PlanoHistorico historico = snapshot(plano, valor, agora);
 		Pagamento pagamento = createPagamento("Renovacao", PagamentoType.DINHEIRO, valor, 0.0, valor, 1);
 
 		Contrato renovado = new Contrato();
@@ -150,6 +155,7 @@ public class ContratoService {
 		renovado.setPlanoHistorico(historico);
 		renovado.setPagamento(pagamento);
 		renovado.setContratoAnterior(anterior);
+		comissoes.aplicar(renovado, plano, anterior.getVendedor(), valor);
 
 		anterior.setStatus(ContratoStatus.RENOVADO);
 		contratos.save(anterior);
