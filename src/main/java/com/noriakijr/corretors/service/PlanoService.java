@@ -12,8 +12,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.noriakijr.corretors.model.Plano;
 import com.noriakijr.corretors.model.PlanoHistorico;
+import com.noriakijr.corretors.model.Seguradora;
 import com.noriakijr.corretors.repository.PlanoHistoricoRepository;
 import com.noriakijr.corretors.repository.PlanoRepository;
+import com.noriakijr.corretors.repository.SeguradoraRepository;
 import com.noriakijr.corretors.web.dto.PlanoPrecoRequest;
 import com.noriakijr.corretors.web.dto.PlanoPrecoResponse;
 import com.noriakijr.corretors.web.dto.PlanoRequest;
@@ -24,10 +26,12 @@ public class PlanoService {
 
 	private final PlanoRepository planos;
 	private final PlanoHistoricoRepository historicos;
+	private final SeguradoraRepository seguradoras;
 
-	public PlanoService(PlanoRepository planos, PlanoHistoricoRepository historicos) {
+	public PlanoService(PlanoRepository planos, PlanoHistoricoRepository historicos, SeguradoraRepository seguradoras) {
 		this.planos = planos;
 		this.historicos = historicos;
+		this.seguradoras = seguradoras;
 	}
 
 	@Transactional(readOnly = true)
@@ -39,11 +43,19 @@ public class PlanoService {
 				.toList();
 	}
 
+	@Transactional(readOnly = true)
+	public List<PlanoResponse> listBySeguradora(Long seguradoraId) {
+		requireSeguradora(seguradoraId);
+		return list().stream().filter(plano -> seguradoraId.equals(plano.seguradoraId())).toList();
+	}
+
 	@Transactional
-	public PlanoResponse create(PlanoRequest request) {
+	public PlanoResponse create(Long seguradoraId, PlanoRequest request) {
+		Seguradora seguradora = requireSeguradora(seguradoraId);
 		Plano plano = new Plano();
 		plano.setNome(request.nome().trim());
 		plano.setDescricao(request.descricao());
+		plano.setSeguradora(seguradora);
 		plano = planos.save(plano);
 		Float valor = null;
 		Float valorRenovacao = null;
@@ -98,6 +110,11 @@ public class PlanoService {
 	private Plano requirePlano(Long id) {
 		return planos.findById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "plano nao encontrado"));
+	}
+
+	private Seguradora requireSeguradora(Long id) {
+		return seguradoras.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "seguradora nao encontrada"));
 	}
 
 }

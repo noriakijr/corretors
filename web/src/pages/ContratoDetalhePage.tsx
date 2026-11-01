@@ -11,7 +11,7 @@ import {
   renewContrato,
 } from '../api.ts';
 import type { Contrato, Plano, Titular, Vendedor } from '../api.ts';
-import { filled, formatDateTime, formatMoney, labelOrId, moneyInput, parseDecimal, textOrDash, toApiDateTime } from '../format.ts';
+import { filled, formatDateTime, formatMoney, labelOrId, moneyInput, parseDecimal, planoRotulo, textOrDash, toApiDateTime } from '../format.ts';
 import { ErrorBanner, Field, MoneyInput, StatusBadge } from '../components/ui.tsx';
 
 function parseId(value: string | undefined): number | null {
@@ -189,7 +189,7 @@ export function ContratoDetalhePage() {
                 )}
               </dd>
               <dt>Plano</dt>
-              <dd>{labelOrId(plano?.nome, contrato.planoId, 'Plano')}</dd>
+              <dd>{planoRotulo(plano?.nome, plano?.seguradoraNome, contrato.planoId)}</dd>
               <dt>Valor</dt>
               <dd>{formatMoney(contrato.valor)}</dd>
               <dt>Aquisição</dt>

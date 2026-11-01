@@ -59,8 +59,11 @@ Testes, inclusive a carga do contexto Spring:
 
 | Método | Caminho | Uso |
 | --- | --- | --- |
-| GET | `/api/planos` | lista planos (`id`, `nome`, `descricao`, `valor` vigente, `valorRenovacao` opcional) |
-| POST | `/api/planos` | cria plano. `nome` é obrigatório. `valor` e `valorRenovacao` são opcionais |
+| GET | `/api/seguradoras` | lista seguradoras (`id`, `nome`) |
+| POST | `/api/seguradoras` | cria seguradora. `nome` é obrigatório |
+| GET | `/api/seguradoras/{id}/planos` | planos dessa seguradora |
+| POST | `/api/seguradoras/{id}/planos` | cria plano da seguradora. `nome` é obrigatório. `valor` e `valorRenovacao` são opcionais |
+| GET | `/api/planos` | lista todos os planos, com `seguradoraId`, `seguradoraNome`, `valor` vigente e `valorRenovacao` opcional |
 | GET | `/api/planos/{id}/precos` | histórico de preço e de renovação, o mais novo primeiro (`valor`, `dtModif`, `renovacao`) |
 | POST | `/api/planos/{id}/precos` | registra um preço. `renovacao: true` grava o preço de renovação. O snapshot da venda não entra nesse histórico |
 | GET | `/api/vendedores` | lista vendedores (`id`, `nome`) |
@@ -77,7 +80,11 @@ Um titular pode ter vários contratos `ATIVO` ao mesmo tempo (ex.: saúde + vida
 Exemplo:
 
 ```bash
-curl -s -X POST http://localhost:8080/api/planos \
+curl -s -X POST http://localhost:8080/api/seguradoras \
+  -H 'Content-Type: application/json' \
+  -d '{"nome":"Porto Seguro"}'
+
+curl -s -X POST http://localhost:8080/api/seguradoras/1/planos \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Plano Essencial","descricao":"Cobertura basica"}'
 
@@ -127,7 +134,7 @@ cd web
 VITE_API_URL=http://127.0.0.1:8080 npm run dev
 ```
 
-A barra tem Planos, Titulares e Vendedores. Contrato não tem lista própria: fica na ficha do titular (`/titulares/:id`), a venda em `/titulares/:id/contratos/novo` e o detalhe com renovação em `/contratos/:id`. Na venda, o vendedor é um seletor (com cadastro rápido do nome); também dá para cadastrar em Vendedores.
+A barra tem Seguradoras, Titulares e Vendedores. O plano se cadastra na página da seguradora (`/seguradoras/:id`). Contrato não tem lista própria: fica na ficha do titular (`/titulares/:id`), a venda em `/titulares/:id/contratos/novo` e o detalhe com renovação em `/contratos/:id`. Na venda, o vendedor é um seletor (com cadastro rápido do nome); também dá para cadastrar em Vendedores.
 
 Checagem de tipo e build estático (`web/dist` não entra no git):
 
