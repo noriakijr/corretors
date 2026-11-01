@@ -101,7 +101,7 @@ export type VendedorInput = {
 
 export type ContratoStatus = 'ATIVO' | 'ENCERRADO' | 'RENOVADO' | 'CANCELADO';
 
-export type PagamentoType = 'DINHEIRO' | 'CHEQUE' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO';
+export type PagamentoType = 'DINHEIRO' | 'CHEQUE' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'PIX';
 
 export type Contrato = {
   id: number;

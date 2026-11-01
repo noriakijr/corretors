@@ -17,6 +17,7 @@ import org.springframework.web.client.RestClient;
 
 import com.noriakijr.corretors.model.Contrato;
 import com.noriakijr.corretors.model.ContratoStatus;
+import com.noriakijr.corretors.model.PagamentoType;
 import com.noriakijr.corretors.model.Plano;
 import com.noriakijr.corretors.model.Titular;
 import com.noriakijr.corretors.model.Vendedor;
@@ -169,6 +170,30 @@ class ContratoApiTest {
 		assertThat(response.getStatusCode().value()).isEqualTo(400);
 		assertThat(response.getBody()).isNotNull();
 		assertThat(response.getBody().get("message")).contains("ATIVO");
+	}
+
+	@Test
+	void persistsPixPaymentType() {
+		Map<String, Object> created = client.post()
+				.uri("/api/contratos")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"titularId", titular.getId(),
+						"vendedorId", vendedor.getId(),
+						"planoId", planoSaude.getId(),
+						"valor", 120.5f,
+						"codigo", "CT-PIX",
+						"dtInicio", "2026-06-01T00:00:00",
+						"dtFim", "2027-06-01T00:00:00",
+						"tipoPag", "PIX"))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+
+		assertThat(created).isNotNull();
+		Contrato stored = contratos.findById(((Number) created.get("id")).longValue()).orElseThrow();
+		assertThat(stored.getPagamento().getTipoPag()).isEqualTo(PagamentoType.PIX);
+		assertThat(stored.getPagamento().getVlrBruto()).isEqualTo(120.5d);
 	}
 
 	private Map<String, Object> createContrato(

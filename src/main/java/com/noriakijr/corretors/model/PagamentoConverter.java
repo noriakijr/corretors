@@ -4,6 +4,7 @@ import static com.noriakijr.corretors.model.PagamentoType.CARTAO_CREDITO;
 import static com.noriakijr.corretors.model.PagamentoType.CARTAO_DEBITO;
 import static com.noriakijr.corretors.model.PagamentoType.CHEQUE;
 import static com.noriakijr.corretors.model.PagamentoType.DINHEIRO;
+import static com.noriakijr.corretors.model.PagamentoType.PIX;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
@@ -21,6 +22,7 @@ public class PagamentoConverter implements AttributeConverter<PagamentoType, Str
 			case CHEQUE -> "CHEQ";
 			case CARTAO_DEBITO -> "DEBI";
 			case CARTAO_CREDITO -> "CRED";
+			case PIX -> "PIX";
 		};
 	}
 
@@ -34,6 +36,7 @@ public class PagamentoConverter implements AttributeConverter<PagamentoType, Str
 			case "CHEQ" -> CHEQUE;
 			case "DEBI" -> CARTAO_DEBITO;
 			case "CRED" -> CARTAO_CREDITO;
+			case "PIX" -> PIX;
 			default -> throw new IllegalArgumentException("Unknown" + dbData);
 		};
 	}

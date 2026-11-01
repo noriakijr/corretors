@@ -19,6 +19,7 @@ const TIPOS: { value: PagamentoType; label: string }[] = [
   { value: 'CHEQUE', label: 'Cheque' },
   { value: 'CARTAO_DEBITO', label: 'Cartão de débito' },
   { value: 'CARTAO_CREDITO', label: 'Cartão de crédito' },
+  { value: 'PIX', label: 'Pix' },
 ];
 
 function parseId(value: string | undefined): number | null {
