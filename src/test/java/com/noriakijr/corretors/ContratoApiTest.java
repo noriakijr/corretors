@@ -149,6 +149,38 @@ class ContratoApiTest {
 	}
 
 	@Test
+	void omittedRenewalDatesStartAtTheRenewalMoment() {
+		Map<String, Object> original = createContrato(titular.getId(), planoSaude.getId(), "CT-AGORA", 150f,
+				"2026-01-01T00:00:00", "2027-06-01T00:00:00");
+		Number originalId = (Number) original.get("id");
+		LocalDateTime before = LocalDateTime.now().minusSeconds(5);
+
+		Map<String, Object> renewed = client.post()
+				.uri("/api/contratos/" + originalId.longValue() + "/renovar")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of())
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+
+		LocalDateTime after = LocalDateTime.now().plusSeconds(5);
+		assertThat(renewed).isNotNull();
+		LocalDateTime inicio = LocalDateTime.parse(renewed.get("dtInicio").toString());
+		LocalDateTime fim = LocalDateTime.parse(renewed.get("dtFim").toString());
+		assertThat(inicio).isBetween(before, after);
+		assertThat(fim).isEqualTo(inicio.plusYears(1));
+		assertThat(renewed.get("status")).isEqualTo("ATIVO");
+
+		Map<String, Object> previous = client.get()
+				.uri("/api/contratos/" + originalId.longValue())
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+		assertThat(previous).isNotNull();
+		assertThat(previous.get("status")).isEqualTo("RENOVADO");
+	}
+
+	@Test
 	void renewRejectsNonActiveContract() {
 		Map<String, Object> original = createContrato(titular.getId(), planoSaude.getId(), "CT-ONCE", 100f,
 				"2025-01-01T00:00:00", "2026-01-01T00:00:00");

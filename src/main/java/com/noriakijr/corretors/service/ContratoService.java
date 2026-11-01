@@ -132,9 +132,7 @@ public class ContratoService {
 				: new RenovarContratoRequest(null, null, null, null, null);
 		LocalDateTime agora = LocalDateTime.now();
 		float valor = body.valor() != null ? body.valor() : anterior.getPlanoHistorico().getValor();
-		LocalDateTime dtInicio = body.dtInicio() != null
-				? body.dtInicio()
-				: (anterior.getDtFim() != null ? anterior.getDtFim() : agora);
+		LocalDateTime dtInicio = body.dtInicio() != null ? body.dtInicio() : agora;
 		LocalDateTime dtFim = body.dtFim() != null ? body.dtFim() : dtInicio.plusYears(1);
 
 		PlanoHistorico historico = snapshot(anterior.getPlanoHistorico().getPlano(), valor, agora);

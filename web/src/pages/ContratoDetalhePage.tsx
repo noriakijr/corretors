@@ -63,6 +63,8 @@ export function ContratoDetalhePage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setContrato(null);
+    setDependentes([]);
     getContrato(contratoId)
       .then((data) => {
         if (!cancelled) {
@@ -117,7 +119,17 @@ export function ContratoDetalhePage() {
   }, [contratoId]);
 
   useEffect(() => {
-    if (!contrato) {
+    setDtInicio('');
+    setDtFim('');
+    setValor('');
+    setCodigo('');
+    setDescricao('');
+    setConfirmed(false);
+    setFormError(null);
+  }, [contratoId]);
+
+  useEffect(() => {
+    if (!contrato || contrato.id !== contratoId) {
       return;
     }
     const planoRenovacao = planos.find((item) => item.id === contrato.planoId)?.valorRenovacao;
@@ -125,7 +137,7 @@ export function ContratoDetalhePage() {
       return;
     }
     setValor((current) => (current === '' ? moneyInput(planoRenovacao) : current));
-  }, [contrato, planos]);
+  }, [contrato, contratoId, planos]);
 
   const ativo = contrato?.status === 'ATIVO';
   const vigente = Boolean(contrato && ativo && periodoVigente(contrato.dtInicio, contrato.dtFim));
@@ -179,11 +191,12 @@ export function ContratoDetalhePage() {
     setDependentes((current) => [...current, saved]);
   }
 
-  async function alterarDependente(index: number, item: DependenteDraft) {
+  async function alterarDependente(key: string, item: DependenteDraft) {
     if (!contrato) {
       return;
     }
-    const atual = dependentes[index];
+    const dependenteId = Number(key);
+    const atual = dependentes.find((dependente) => dependente.id === dependenteId);
     if (!atual) {
       return;
     }
@@ -191,11 +204,12 @@ export function ContratoDetalhePage() {
     setDependentes((current) => current.map((dependente) => (dependente.id === atual.id ? saved : dependente)));
   }
 
-  async function removerDependente(index: number) {
+  async function removerDependente(key: string) {
     if (!contrato) {
       return;
     }
-    const atual = dependentes[index];
+    const dependenteId = Number(key);
+    const atual = dependentes.find((dependente) => dependente.id === dependenteId);
     if (!atual) {
       return;
     }
@@ -277,7 +291,12 @@ export function ContratoDetalhePage() {
           <section className="panel">
             <h2>Dependentes</h2>
             <DependentesEditor
-              itens={dependentes}
+              itens={dependentes.map((dependente) => ({
+                key: String(dependente.id),
+                nome: dependente.nome,
+                parentesco: dependente.parentesco,
+                dtNasc: dependente.dtNasc,
+              }))}
               limite={limite}
               editavel={vigente}
               nota={
@@ -293,8 +312,9 @@ export function ContratoDetalhePage() {
           <section className="panel">
             <h2>Renovar</h2>
             <p className="note">
-              Campos vazios repetem o preço, o plano e o vendedor. A vigência nova começa na data de fim do
-              contrato atual. O anterior fica RENOVADO e o novo nasce ATIVO, ligado por este registro.
+              Campos vazios repetem o preço, o plano e o vendedor. Sem início, a vigência nova começa agora; o fim
+              vazio dura um ano a partir desse início. O anterior fica RENOVADO e o novo nasce ATIVO, ligado por este
+              registro.
             </p>
             {!ativo ? <p className="note">Só um contrato ATIVO pode ser renovado.</p> : null}
             <div className="stack">

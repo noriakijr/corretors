@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { errorMessage } from '../api.ts';
@@ -11,7 +11,7 @@ export type DependenteDraft = {
   dtNasc: string;
 };
 
-type Item = DependenteDraft & { id?: number };
+type Item = DependenteDraft & { key: string };
 
 const NOTA_LIMITE = 'O limite de dependentes deste plano foi atingido.';
 
@@ -29,15 +29,15 @@ export function DependentesEditor({
   editavel: boolean;
   nota?: string | null;
   onCreate: (item: DependenteDraft) => Promise<void> | void;
-  onUpdate: (index: number, item: DependenteDraft) => Promise<void> | void;
-  onRemove: (index: number) => Promise<void> | void;
+  onUpdate: (key: string, item: DependenteDraft) => Promise<void> | void;
+  onRemove: (key: string) => Promise<void> | void;
 }) {
-  const [editing, setEditing] = useState<number | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [parentesco, setParentesco] = useState('');
   const [dtNasc, setDtNasc] = useState('');
   const [saving, setSaving] = useState(false);
-  const [removing, setRemoving] = useState<number | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const noLimite = limite == null;
@@ -49,14 +49,27 @@ export function DependentesEditor({
     setNome('');
     setParentesco('');
     setDtNasc('');
+    setError(null);
   }
 
-  function beginEdit(index: number) {
-    const item = itens[index];
+  useEffect(() => {
+    if (!editavel) {
+      reset();
+    }
+  }, [editavel]);
+
+  useEffect(() => {
+    if (editing != null && !itens.some((item) => item.key === editing)) {
+      reset();
+    }
+  }, [editing, itens]);
+
+  function beginEdit(key: string) {
+    const item = itens.find((atual) => atual.key === key);
     if (!item) {
       return;
     }
-    setEditing(index);
+    setEditing(key);
     setNome(item.nome);
     setParentesco(item.parentesco);
     setDtNasc(item.dtNasc.slice(0, 10));
@@ -96,12 +109,12 @@ export function DependentesEditor({
     }
   }
 
-  async function remove(index: number) {
-    setRemoving(index);
+  async function remove(key: string) {
+    setRemoving(key);
     setError(null);
     try {
-      await onRemove(index);
-      if (editing === index) {
+      await onRemove(key);
+      if (editing === key) {
         reset();
       }
     } catch (cause: unknown) {
@@ -119,8 +132,8 @@ export function DependentesEditor({
       {itens.length === 0 ? <p className="empty">Nenhum dependente neste contrato.</p> : null}
       {itens.length > 0 ? (
         <ul className="dep-list">
-          {itens.map((item, index) => (
-            <li key={item.id ?? `${item.nome}-${index}`} className="dep-row">
+          {itens.map((item) => (
+            <li key={item.key} className="dep-row">
               <div>
                 <h3>{item.nome}</h3>
                 <p>
@@ -131,16 +144,16 @@ export function DependentesEditor({
               </div>
               {editavel ? (
                 <div className="dep-actions">
-                  <button className="button secondary small" type="button" onClick={() => beginEdit(index)}>
+                  <button className="button secondary small" type="button" onClick={() => beginEdit(item.key)}>
                     Editar
                   </button>
                   <button
                     className="button secondary small"
                     type="button"
-                    disabled={removing === index}
-                    onClick={() => void remove(index)}
+                    disabled={removing === item.key}
+                    onClick={() => void remove(item.key)}
                   >
-                    {removing === index ? 'Removendo…' : 'Remover'}
+                    {removing === item.key ? 'Removendo…' : 'Remover'}
                   </button>
                 </div>
               ) : null}

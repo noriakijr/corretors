@@ -10,7 +10,7 @@ import {
   listTitulares,
   listVendedores,
 } from '../api.ts';
-import type { DependenteInput, PagamentoType, Plano, Seguradora, Titular, Vendedor } from '../api.ts';
+import type { PagamentoType, Plano, Seguradora, Titular, Vendedor } from '../api.ts';
 import { filled, formatMoney, hojeIso, moneyInput, parseDecimal, parseParcelas, periodoVigente, planoPreco, plusYearsIso, toApiDateTime } from '../format.ts';
 import { DependentesEditor } from '../components/DependentesEditor.tsx';
 import type { DependenteDraft } from '../components/DependentesEditor.tsx';
@@ -23,6 +23,8 @@ const TIPOS: { value: PagamentoType; label: string }[] = [
   { value: 'CARTAO_CREDITO', label: 'Cartão de crédito' },
   { value: 'PIX', label: 'Pix' },
 ];
+
+type DependenteVenda = DependenteDraft & { key: string };
 
 function parseId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) {
@@ -59,7 +61,7 @@ export function ContratoNovoPage() {
   const [pagamentoDescricao, setPagamentoDescricao] = useState('');
   const [tipoPag, setTipoPag] = useState('');
   const [vlrDesconto, setVlrDesconto] = useState('');
-  const [dependentes, setDependentes] = useState<DependenteInput[]>([]);
+  const [dependentes, setDependentes] = useState<DependenteVenda[]>([]);
 
   useEffect(() => {
     if (titularId == null) {
@@ -158,7 +160,10 @@ export function ContratoNovoPage() {
         tipoPag: tipoPag ? (tipoPag as PagamentoType) : undefined,
         vlrDesconto: desconto,
         quantidadeParcelas,
-        dependentes: dependentes.length > 0 ? dependentes : undefined,
+        dependentes:
+          dependentes.length > 0
+            ? dependentes.map(({ nome, parentesco, dtNasc }) => ({ nome, parentesco, dtNasc }))
+            : undefined,
       });
       navigate(`/titulares/${titularId}`, {
         state: { notice: 'Contrato ativo criado. O preço ficou no snapshot da venda.' },
@@ -192,15 +197,17 @@ export function ContratoNovoPage() {
   const vendaVigente = periodoVigente(inicioEfetivo, fimEfetivo);
 
   function incluirDependente(item: DependenteDraft) {
-    setDependentes((current) => [...current, item]);
+    setDependentes((current) => [...current, { ...item, key: crypto.randomUUID() }]);
   }
 
-  function alterarDependente(index: number, item: DependenteDraft) {
-    setDependentes((current) => current.map((atual, posicao) => (posicao === index ? item : atual)));
+  function alterarDependente(key: string, item: DependenteDraft) {
+    setDependentes((current) =>
+      current.map((atual) => (atual.key === key ? { ...atual, ...item, key } : atual)),
+    );
   }
 
-  function removerDependente(index: number) {
-    setDependentes((current) => current.filter((_, posicao) => posicao !== index));
+  function removerDependente(key: string) {
+    setDependentes((current) => current.filter((atual) => atual.key !== key));
   }
 
   function onSeguradoraChange(nextId: string) {
