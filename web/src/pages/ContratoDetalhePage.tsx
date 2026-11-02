@@ -15,7 +15,21 @@ import {
   updateDependente,
 } from '../api.ts';
 import type { Contrato, Dependente, Plano, Titular, Vendedor } from '../api.ts';
-import { filled, formatDate, formatDateTime, formatMoney, labelOrId, moneyInput, parseDecimal, periodoVigente, planoRotulo, textOrDash, toApiDateTime } from '../format.ts';
+import {
+  calcularComissao,
+  filled,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  labelOrId,
+  moneyInput,
+  parseDecimal,
+  periodoVigente,
+  planoRotulo,
+  regraDoVendedor,
+  textOrDash,
+  toApiDateTime,
+} from '../format.ts';
 import { DependentesEditor } from '../components/DependentesEditor.tsx';
 import type { DependenteDraft } from '../components/DependentesEditor.tsx';
 import { ErrorBanner, Field, MoneyInput, OkBanner, StatusBadge } from '../components/ui.tsx';
@@ -146,6 +160,19 @@ export function ContratoDetalhePage() {
   const copiados = limite == null ? dependentes : dependentes.slice(0, limite);
   const vendedor = vendedores.find((item) => item.id === contrato?.vendedorId);
   const titular = titulares.find((item) => item.id === contrato?.titularId);
+  const valorRenovacaoNumero = parseDecimal(valor);
+  const totalRenovacao =
+    contrato == null
+      ? undefined
+      : valorRenovacaoNumero === undefined
+        ? (contrato.valor ?? undefined)
+        : Number.isNaN(valorRenovacaoNumero)
+          ? undefined
+          : valorRenovacaoNumero;
+  const comissaoRenovacao =
+    plano && totalRenovacao !== undefined
+      ? calcularComissao(regraDoVendedor(plano, contrato?.vendedorId), totalRenovacao)
+      : undefined;
 
   async function onRenew(event: FormEvent) {
     event.preventDefault();
@@ -159,6 +186,14 @@ export function ContratoDetalhePage() {
     const valorNumero = parseDecimal(valor);
     if (Number.isNaN(valorNumero)) {
       setFormError('Informe um valor numérico ou deixe em branco.');
+      return;
+    }
+    if (valorNumero !== undefined && valorNumero < 0) {
+      setFormError('O valor da renovação não pode ser negativo.');
+      return;
+    }
+    if (comissaoRenovacao?.erro) {
+      setFormError(comissaoRenovacao.erro);
       return;
     }
     setSaving(true);
@@ -264,6 +299,10 @@ export function ContratoDetalhePage() {
               <dd>{planoRotulo(plano?.nome, plano?.seguradoraNome, contrato.planoId)}</dd>
               <dt>Valor</dt>
               <dd>{formatMoney(contrato.valor)}</dd>
+              <dt>Comissão do vendedor</dt>
+              <dd>{formatMoney(contrato.valorComissao)}</dd>
+              <dt>Receita da corretora</dt>
+              <dd>{formatMoney(contrato.receitaCorretora)}</dd>
               <dt>Aquisição</dt>
               <dd>{formatDateTime(contrato.dtAquisicao)}</dd>
               <dt>Início</dt>
@@ -376,6 +415,19 @@ export function ContratoDetalhePage() {
                 {plano?.valorRenovacao != null ? (
                   <p className="note wide">Preço de renovação do plano, já preenchido. Apagar o campo repete o valor deste contrato.</p>
                 ) : null}
+                {ativo && comissaoRenovacao ? (
+                  <dl className="totals wide">
+                    <div>
+                      <dt>Comissão do vendedor</dt>
+                      <dd>{comissaoRenovacao.erro ? '—' : formatMoney(comissaoRenovacao.comissao)}</dd>
+                    </div>
+                    <div>
+                      <dt>Receita da corretora</dt>
+                      <dd>{comissaoRenovacao.erro ? '—' : formatMoney(comissaoRenovacao.receita)}</dd>
+                    </div>
+                  </dl>
+                ) : null}
+                {ativo && comissaoRenovacao?.erro ? <p className="note wide">{comissaoRenovacao.erro}</p> : null}
                 <Field label="Código">
                   <input
                     value={codigo}
@@ -401,7 +453,7 @@ export function ContratoDetalhePage() {
                 <span>Confirmo que o contrato atual ficará RENOVADO e que um contrato novo será criado.</span>
               </label>
               <div className="actions">
-                <button className="button" type="submit" disabled={!ativo || saving}>
+                <button className="button" type="submit" disabled={!ativo || saving || Boolean(comissaoRenovacao?.erro)}>
                   {saving ? 'Renovando…' : 'Renovar'}
                 </button>
               </div>

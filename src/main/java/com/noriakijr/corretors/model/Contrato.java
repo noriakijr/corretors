@@ -55,6 +55,10 @@ public class Contrato implements Serializable, IEntity {
 	@JoinColumn(name = "contrato_anterior_id")
 	private Contrato contratoAnterior;
 
+	private Double valorComissao;
+
+	private Double receitaCorretora;
+
 	@Override
 	public Long getId() {
 		return id;
@@ -150,6 +154,22 @@ public class Contrato implements Serializable, IEntity {
 
 	public void setContratoAnterior(Contrato contratoAnterior) {
 		this.contratoAnterior = contratoAnterior;
+	}
+
+	public Double getValorComissao() {
+		return valorComissao;
+	}
+
+	public void setValorComissao(Double valorComissao) {
+		this.valorComissao = valorComissao;
+	}
+
+	public Double getReceitaCorretora() {
+		return receitaCorretora;
+	}
+
+	public void setReceitaCorretora(Double receitaCorretora) {
+		this.receitaCorretora = receitaCorretora;
 	}
 
 }
