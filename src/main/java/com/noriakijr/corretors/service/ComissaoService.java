@@ -93,6 +93,9 @@ public class ComissaoService {
 			}
 		}
 		long totalCents = Math.round(total * 100.0);
+		if (totalCents < 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "total nao pode ser negativo");
+		}
 		long comissaoCents = 0;
 		if (tipo == TipoComissao.PERCENTUAL && percentual != null) {
 			if (percentual > 100.0) {

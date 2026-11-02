@@ -198,6 +198,39 @@ class ComissaoApiTest {
 		assertThat(stored.getStatus()).isEqualTo(ContratoStatus.ATIVO);
 	}
 
+	@Test
+	void rejectsNegativeRenewalPremiumForPercentRule() {
+		long planoId = idOf(postPlano(Map.of(
+				"nome", "Plano Percentual Negativo",
+				"tipoComissao", "PERCENTUAL",
+				"percentual", 10)));
+		Map<String, Object> venda = vender(planoId, vendedorId, 100f, null, "CT-COM-NEG");
+
+		ResponseEntity<Map<String, String>> rejected = client.post()
+				.uri("/api/contratos/" + idOf(venda) + "/renovar")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of("valor", -50))
+				.retrieve()
+				.onStatus(status -> status.value() == 400, (req, res) -> {
+				})
+				.toEntity(new ParameterizedTypeReference<>() {
+				});
+
+		assertThat(rejected.getStatusCode().value()).isEqualTo(400);
+		assertThat(rejected.getBody()).isNotNull();
+		assertThat(rejected.getBody().get("message")).contains("negativ");
+
+		Contrato stored = contratos.findById(idOf(venda)).orElseThrow();
+		assertThat(stored.getStatus()).isEqualTo(ContratoStatus.ATIVO);
+		assertThat(stored.getPlanoHistorico().getValor()).isEqualTo(100f);
+		assertThat(stored.getValorComissao()).isCloseTo(10d, within(0.001));
+		assertThat(contratos.findAll())
+				.filteredOn(contrato -> contrato.getPlanoHistorico() != null
+						&& contrato.getPlanoHistorico().getPlano() != null
+						&& planoId == contrato.getPlanoHistorico().getPlano().getId())
+				.allSatisfy(contrato -> assertThat(contrato.getPlanoHistorico().getValor()).isGreaterThanOrEqualTo(0f));
+	}
+
 	private void assertPersisted(Map<String, Object> body, double comissao, double receita) {
 		Contrato stored = contratos.findById(idOf(body)).orElseThrow();
 		assertThat(stored.getValorComissao()).isCloseTo(comissao, within(0.001));

@@ -188,6 +188,14 @@ export function ContratoDetalhePage() {
       setFormError('Informe um valor numérico ou deixe em branco.');
       return;
     }
+    if (valorNumero !== undefined && valorNumero < 0) {
+      setFormError('O valor da renovação não pode ser negativo.');
+      return;
+    }
+    if (comissaoRenovacao?.erro) {
+      setFormError(comissaoRenovacao.erro);
+      return;
+    }
     setSaving(true);
     setFormError(null);
     try {
@@ -445,7 +453,7 @@ export function ContratoDetalhePage() {
                 <span>Confirmo que o contrato atual ficará RENOVADO e que um contrato novo será criado.</span>
               </label>
               <div className="actions">
-                <button className="button" type="submit" disabled={!ativo || saving}>
+                <button className="button" type="submit" disabled={!ativo || saving || Boolean(comissaoRenovacao?.erro)}>
                   {saving ? 'Renovando…' : 'Renovar'}
                 </button>
               </div>

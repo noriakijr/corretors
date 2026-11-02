@@ -156,6 +156,12 @@ export function ContratoNovoPage() {
       setError('A quantidade de dependentes passa do limite do plano.');
       return;
     }
+    const totalVenda = valorNumero - (desconto ?? 0);
+    const previa = calcularComissao(regraDoVendedor(planoSelecionado, Number(vendedorId)), totalVenda);
+    if (previa.erro) {
+      setError(previa.erro);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -456,7 +462,7 @@ export function ContratoNovoPage() {
           />
         </section>
         <div className="actions">
-          <button className="button" type="submit" form="venda" disabled={saving}>
+          <button className="button" type="submit" form="venda" disabled={saving || Boolean(comissaoVenda?.erro)}>
             {saving ? 'Salvando…' : 'Registrar venda'}
           </button>
         </div>

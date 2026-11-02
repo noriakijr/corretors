@@ -48,7 +48,7 @@ public class ContratoController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public ContratoResponse renew(
 			@PathVariable Long id,
-			@RequestBody(required = false) RenovarContratoRequest request) {
+			@Valid @RequestBody(required = false) RenovarContratoRequest request) {
 		return contratos.renew(id, request);
 	}
 
