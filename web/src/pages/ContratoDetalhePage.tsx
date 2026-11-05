@@ -14,7 +14,7 @@ import {
   renewContrato,
   updateDependente,
 } from '../api.ts';
-import type { Contrato, Dependente, Plano, Titular, Vendedor } from '../api.ts';
+import type { Contrato, Dependente, PagamentoType, Plano, Titular, Vendedor } from '../api.ts';
 import {
   calcularComissao,
   filled,
@@ -24,15 +24,24 @@ import {
   labelOrId,
   moneyInput,
   parseDecimal,
+  parseParcelas,
   periodoVigente,
   planoRotulo,
   regraDoVendedor,
   textOrDash,
-  toApiDateTime,
+  toApiDate,
 } from '../format.ts';
 import { DependentesEditor } from '../components/DependentesEditor.tsx';
 import type { DependenteDraft } from '../components/DependentesEditor.tsx';
-import { ErrorBanner, Field, MoneyInput, OkBanner, StatusBadge } from '../components/ui.tsx';
+import { DigitsInput, ErrorBanner, Field, MoneyInput, OkBanner, StatusBadge } from '../components/ui.tsx';
+
+const TIPOS: { value: PagamentoType; label: string }[] = [
+  { value: 'DINHEIRO', label: 'Dinheiro' },
+  { value: 'CHEQUE', label: 'Cheque' },
+  { value: 'CARTAO_DEBITO', label: 'Cartão de débito' },
+  { value: 'CARTAO_CREDITO', label: 'Cartão de crédito' },
+  { value: 'PIX', label: 'Pix' },
+];
 
 function parseId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) {
@@ -64,6 +73,10 @@ export function ContratoDetalhePage() {
   const [dtInicio, setDtInicio] = useState('');
   const [dtFim, setDtFim] = useState('');
   const [valor, setValor] = useState('');
+  const [vlrDesconto, setVlrDesconto] = useState('');
+  const [tipoPag, setTipoPag] = useState('');
+  const [modo, setModo] = useState<'vista' | 'parcelado'>('vista');
+  const [parcelas, setParcelas] = useState('2');
   const [codigo, setCodigo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -136,6 +149,10 @@ export function ContratoDetalhePage() {
     setDtInicio('');
     setDtFim('');
     setValor('');
+    setVlrDesconto('');
+    setTipoPag('');
+    setModo('vista');
+    setParcelas('2');
     setCodigo('');
     setDescricao('');
     setConfirmed(false);
@@ -160,17 +177,32 @@ export function ContratoDetalhePage() {
   const copiados = limite == null ? dependentes : dependentes.slice(0, limite);
   const vendedor = vendedores.find((item) => item.id === contrato?.vendedorId);
   const titular = titulares.find((item) => item.id === contrato?.titularId);
-  const valorRenovacaoNumero = parseDecimal(valor);
-  const totalRenovacao =
+  const valorInformado = parseDecimal(valor);
+  const descontoInformado = parseDecimal(vlrDesconto);
+  const baseRenovacao =
     contrato == null
       ? undefined
-      : valorRenovacaoNumero === undefined
+      : valorInformado === undefined
         ? (contrato.valor ?? undefined)
-        : Number.isNaN(valorRenovacaoNumero)
+        : Number.isNaN(valorInformado)
           ? undefined
-          : valorRenovacaoNumero;
+          : valorInformado;
+  const descontoAplicado =
+    descontoInformado === undefined || Number.isNaN(descontoInformado) ? 0 : descontoInformado;
+  const totalRenovacao =
+    baseRenovacao === undefined || Number.isNaN(descontoInformado ?? 0)
+      ? undefined
+      : baseRenovacao - descontoAplicado;
+  const quantidade = parseParcelas(parcelas);
+  const cadaParcela =
+    totalRenovacao !== undefined && quantidade !== undefined ? totalRenovacao / quantidade : undefined;
+  const descontoMaior =
+    descontoInformado !== undefined &&
+    !Number.isNaN(descontoInformado) &&
+    baseRenovacao !== undefined &&
+    descontoInformado > baseRenovacao;
   const comissaoRenovacao =
-    plano && totalRenovacao !== undefined
+    plano && totalRenovacao !== undefined && !descontoMaior
       ? calcularComissao(regraDoVendedor(plano, contrato?.vendedorId), totalRenovacao)
       : undefined;
 
@@ -192,6 +224,20 @@ export function ContratoDetalhePage() {
       setFormError('O valor da renovação não pode ser negativo.');
       return;
     }
+    const desconto = parseDecimal(vlrDesconto);
+    if (Number.isNaN(desconto)) {
+      setFormError('Informe um desconto numérico ou deixe em branco.');
+      return;
+    }
+    if (desconto !== undefined && baseRenovacao !== undefined && desconto > baseRenovacao) {
+      setFormError('O desconto não pode ser maior que o valor.');
+      return;
+    }
+    const quantidadeParcelas = modo === 'parcelado' ? parseParcelas(parcelas) : undefined;
+    if (modo === 'parcelado' && (quantidadeParcelas === undefined || quantidadeParcelas < 2)) {
+      setFormError('Informe a quantidade de parcelas, com 2 ou mais.');
+      return;
+    }
     if (comissaoRenovacao?.erro) {
       setFormError(comissaoRenovacao.erro);
       return;
@@ -200,11 +246,14 @@ export function ContratoDetalhePage() {
     setFormError(null);
     try {
       const novo = await renewContrato(contrato.id, {
-        dtInicio: toApiDateTime(dtInicio),
-        dtFim: toApiDateTime(dtFim),
+        dtInicio: toApiDate(dtInicio),
+        dtFim: toApiDate(dtFim),
         valor: valorNumero,
         codigo: filled(codigo),
         descricao: filled(descricao),
+        tipoPag: tipoPag ? (tipoPag as PagamentoType) : undefined,
+        vlrDesconto: desconto,
+        quantidadeParcelas,
       });
       navigate(`/contratos/${novo.id}`, {
         state: {
@@ -306,9 +355,9 @@ export function ContratoDetalhePage() {
               <dt>Aquisição</dt>
               <dd>{formatDateTime(contrato.dtAquisicao)}</dd>
               <dt>Início</dt>
-              <dd>{formatDateTime(contrato.dtInicio)}</dd>
+              <dd>{formatDate(contrato.dtInicio)}</dd>
               <dt>Fim</dt>
-              <dd>{formatDateTime(contrato.dtFim)}</dd>
+              <dd>{formatDate(contrato.dtFim)}</dd>
               <dt>Vendedor</dt>
               <dd>{labelOrId(vendedor?.nome, contrato.vendedorId, 'Vendedor')}</dd>
               <dt>Pagamento</dt>
@@ -352,8 +401,8 @@ export function ContratoDetalhePage() {
             <h2>Renovar</h2>
             <p className="note">
               Campos vazios repetem o preço, o plano e o vendedor. Sem início, a vigência nova começa agora; o fim
-              vazio dura um ano a partir desse início. O anterior fica RENOVADO e o novo nasce ATIVO, ligado por este
-              registro.
+              vazio dura um ano a partir desse início. O total já inclui o desconto. O anterior fica RENOVADO e o novo
+              nasce ATIVO, ligado por este registro.
             </p>
             {!ativo ? <p className="note">Só um contrato ATIVO pode ser renovado.</p> : null}
             <div className="stack">
@@ -386,7 +435,7 @@ export function ContratoDetalhePage() {
               <div className="form-grid">
                 <Field label="Início">
                   <input
-                    type="datetime-local"
+                    type="date"
                     value={dtInicio}
                     disabled={!ativo}
                     onChange={(event) => setDtInicio(event.target.value)}
@@ -394,7 +443,7 @@ export function ContratoDetalhePage() {
                 </Field>
                 <Field label="Fim">
                   <input
-                    type="datetime-local"
+                    type="date"
                     value={dtFim}
                     disabled={!ativo}
                     onChange={(event) => setDtFim(event.target.value)}
@@ -412,20 +461,93 @@ export function ContratoDetalhePage() {
                     onChange={setValor}
                   />
                 </Field>
+                <Field label="Desconto (R$)">
+                  <MoneyInput value={vlrDesconto} disabled={!ativo} onChange={setVlrDesconto} />
+                </Field>
+                <Field label="Tipo de pagamento">
+                  <select value={tipoPag} disabled={!ativo} onChange={(event) => setTipoPag(event.target.value)}>
+                    <option value="">Dinheiro (padrão)</option>
+                    {TIPOS.map((tipo) => (
+                      <option key={tipo.value} value={tipo.value}>
+                        {tipo.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 {plano?.valorRenovacao != null ? (
                   <p className="note wide">Preço de renovação do plano, já preenchido. Apagar o campo repete o valor deste contrato.</p>
                 ) : null}
-                {ativo && comissaoRenovacao ? (
+                {ativo ? (
+                  <fieldset className="pay-options wide">
+                    <legend>Forma de pagamento</legend>
+                    <label className={modo === 'vista' ? 'pay-option active' : 'pay-option'}>
+                      <input
+                        type="radio"
+                        name="modo-renovacao"
+                        checked={modo === 'vista'}
+                        onChange={() => setModo('vista')}
+                      />
+                      <span className="pay-copy">
+                        <small>À vista</small>
+                        <strong>{formatMoney(totalRenovacao)}</strong>
+                      </span>
+                    </label>
+                    <label className={modo === 'parcelado' ? 'pay-option active' : 'pay-option'}>
+                      <input
+                        type="radio"
+                        name="modo-renovacao"
+                        checked={modo === 'parcelado'}
+                        onChange={() => setModo('parcelado')}
+                      />
+                      <span className="pay-copy">
+                        <small>Parcelado</small>
+                        <strong>{formatMoney(cadaParcela ?? totalRenovacao)}</strong>
+                        {totalRenovacao === undefined ? (
+                          <small>Informe o valor</small>
+                        ) : cadaParcela !== undefined && quantidade !== undefined ? (
+                          <small>
+                            {quantidade}× {formatMoney(cadaParcela)}
+                          </small>
+                        ) : (
+                          <small>Informe a quantidade de parcelas</small>
+                        )}
+                      </span>
+                    </label>
+                  </fieldset>
+                ) : null}
+                {ativo && modo === 'parcelado' ? (
+                  <Field label="Quantidade de parcelas">
+                    <DigitsInput value={parcelas} onChange={setParcelas} />
+                  </Field>
+                ) : null}
+                {ativo && totalRenovacao !== undefined ? (
                   <dl className="totals wide">
                     <div>
-                      <dt>Comissão do vendedor</dt>
-                      <dd>{comissaoRenovacao.erro ? '—' : formatMoney(comissaoRenovacao.comissao)}</dd>
+                      <dt>Valor total</dt>
+                      <dd>{descontoMaior ? '—' : formatMoney(totalRenovacao)}</dd>
                     </div>
-                    <div>
-                      <dt>Receita da corretora</dt>
-                      <dd>{comissaoRenovacao.erro ? '—' : formatMoney(comissaoRenovacao.receita)}</dd>
-                    </div>
+                    {modo === 'parcelado' ? (
+                      <div>
+                        <dt>Valor de cada parcela</dt>
+                        <dd>{descontoMaior ? '—' : formatMoney(cadaParcela)}</dd>
+                      </div>
+                    ) : null}
+                    {comissaoRenovacao ? (
+                      <div>
+                        <dt>Comissão do vendedor</dt>
+                        <dd>{comissaoRenovacao.erro ? '—' : formatMoney(comissaoRenovacao.comissao)}</dd>
+                      </div>
+                    ) : null}
+                    {comissaoRenovacao ? (
+                      <div>
+                        <dt>Receita da corretora</dt>
+                        <dd>{comissaoRenovacao.erro ? '—' : formatMoney(comissaoRenovacao.receita)}</dd>
+                      </div>
+                    ) : null}
                   </dl>
+                ) : null}
+                {ativo && descontoMaior ? (
+                  <p className="note wide">O desconto não pode ser maior que o valor.</p>
                 ) : null}
                 {ativo && comissaoRenovacao?.erro ? <p className="note wide">{comissaoRenovacao.erro}</p> : null}
                 <Field label="Código">
@@ -453,7 +575,11 @@ export function ContratoDetalhePage() {
                 <span>Confirmo que o contrato atual ficará RENOVADO e que um contrato novo será criado.</span>
               </label>
               <div className="actions">
-                <button className="button" type="submit" disabled={!ativo || saving || Boolean(comissaoRenovacao?.erro)}>
+                <button
+                  className="button"
+                  type="submit"
+                  disabled={!ativo || saving || descontoMaior || Boolean(comissaoRenovacao?.erro)}
+                >
                   {saving ? 'Renovando…' : 'Renovar'}
                 </button>
               </div>

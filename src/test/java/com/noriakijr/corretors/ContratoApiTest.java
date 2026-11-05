@@ -246,6 +246,13 @@ class ContratoApiTest {
 				});
 		assertThat(renewed).isNotNull();
 		assertThat(((Number) renewed.get("valor")).floatValue()).isEqualTo(150f);
+		Contrato storedRenewed = contratos.findById(((Number) renewed.get("id")).longValue()).orElseThrow();
+		assertThat(storedRenewed.getPagamento().getTipoPag()).isEqualTo(PagamentoType.DINHEIRO);
+		assertThat(storedRenewed.getPagamento().getVlrBruto()).isEqualTo(150d);
+		assertThat(storedRenewed.getPagamento().getVlrDesconto()).isEqualTo(0d);
+		assertThat(storedRenewed.getPagamento().getVlrLiquido()).isEqualTo(150d);
+		assertThat(storedRenewed.getPagamento().getQuantidade()).isEqualTo(1);
+		assertThat(parcelas.findByPagamentoIdOrderByDtParcelaAscIdAsc(storedRenewed.getPagamento().getId())).isEmpty();
 
 		var rejected = client.post()
 				.uri("/api/contratos")
@@ -320,6 +327,92 @@ class ContratoApiTest {
 		Contrato stored = contratos.findById(((Number) created.get("id")).longValue()).orElseThrow();
 		assertThat(stored.getPagamento().getTipoPag()).isEqualTo(PagamentoType.PIX);
 		assertThat(stored.getPagamento().getVlrBruto()).isEqualTo(120.5d);
+	}
+
+	@Test
+	void acceptsDateOnlyContractBounds() {
+		Map<String, Object> created = client.post()
+				.uri("/api/contratos")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"titularId", titular.getId(),
+						"vendedorId", vendedor.getId(),
+						"planoId", planoSaude.getId(),
+						"valor", 90f,
+						"codigo", "CT-DATA",
+						"dtInicio", "2026-04-02",
+						"dtFim", "2027-04-02"))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+
+		assertThat(created).isNotNull();
+		assertThat(LocalDateTime.parse(created.get("dtInicio").toString()))
+				.isEqualTo(LocalDateTime.parse("2026-04-02T00:00:00"));
+		assertThat(LocalDateTime.parse(created.get("dtFim").toString()))
+				.isEqualTo(LocalDateTime.parse("2027-04-02T00:00:00"));
+	}
+
+	@Test
+	void renewPersistsDiscountInstallmentsPixAndRejectsALargerDiscount() {
+		Map<String, Object> original = createContrato(titular.getId(), planoSaude.getId(), "CT-REN-PAG", 150f,
+				"2025-03-01T00:00:00", "2026-03-01T00:00:00");
+		Number originalId = (Number) original.get("id");
+
+		Map<String, Object> renewed = client.post()
+				.uri("/api/contratos/" + originalId.longValue() + "/renovar")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"dtInicio", "2026-03-01",
+						"dtFim", "2027-03-01",
+						"valor", 180f,
+						"vlrDesconto", 30d,
+						"quantidadeParcelas", 3,
+						"tipoPag", "PIX",
+						"codigo", "CT-REN-PIX"))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+
+		assertThat(renewed).isNotNull();
+		assertThat(((Number) renewed.get("valor")).floatValue()).isEqualTo(150f);
+		assertThat(LocalDateTime.parse(renewed.get("dtInicio").toString()))
+				.isEqualTo(LocalDateTime.parse("2026-03-01T00:00:00"));
+		assertThat(LocalDateTime.parse(renewed.get("dtFim").toString()))
+				.isEqualTo(LocalDateTime.parse("2027-03-01T00:00:00"));
+		Contrato stored = contratos.findById(((Number) renewed.get("id")).longValue()).orElseThrow();
+		assertThat(stored.getPagamento().getTipoPag()).isEqualTo(PagamentoType.PIX);
+		assertThat(stored.getPagamento().getDescricao()).isEqualTo("Renovacao");
+		assertThat(stored.getPagamento().getVlrBruto()).isEqualTo(180d);
+		assertThat(stored.getPagamento().getVlrDesconto()).isEqualTo(30d);
+		assertThat(stored.getPagamento().getVlrLiquido()).isEqualTo(150d);
+		assertThat(stored.getPagamento().getQuantidade()).isEqualTo(3);
+		assertThat(stored.getPlanoHistorico().getValor()).isEqualTo(150f);
+		List<Parcela> rows = parcelas.findByPagamentoIdOrderByDtParcelaAscIdAsc(stored.getPagamento().getId());
+		assertThat(rows).hasSize(3);
+		assertThat(rows).allSatisfy(parcela -> assertThat(parcela.getVlrParcela()).isEqualTo(50d));
+		assertThat(rows.get(0).getDtParcela()).isEqualTo(LocalDateTime.parse("2026-03-01T00:00:00"));
+		assertThat(rows.get(1).getDtParcela()).isEqualTo(LocalDateTime.parse("2026-04-01T00:00:00"));
+		assertThat(rows.get(2).getDtParcela()).isEqualTo(LocalDateTime.parse("2026-05-01T00:00:00"));
+
+		Map<String, Object> ativo = createContrato(titular.getId(), planoSaude.getId(), "CT-REN-ALTO", 100f,
+				"2026-01-01T00:00:00", "2027-01-01T00:00:00");
+		var rejected = client.post()
+				.uri("/api/contratos/" + ((Number) ativo.get("id")).longValue() + "/renovar")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"valor", 100f,
+						"vlrDesconto", 150d))
+				.retrieve()
+				.onStatus(status -> status.value() == 400, (req, res) -> {
+				})
+				.toEntity(new ParameterizedTypeReference<Map<String, String>>() {
+				});
+		assertThat(rejected.getStatusCode().value()).isEqualTo(400);
+		assertThat(rejected.getBody()).isNotNull();
+		assertThat(rejected.getBody().get("message")).contains("desconto");
+		assertThat(contratos.findById(((Number) ativo.get("id")).longValue()).orElseThrow().getStatus())
+				.isEqualTo(ContratoStatus.ATIVO);
 	}
 
 	private Map<String, Object> createContrato(
