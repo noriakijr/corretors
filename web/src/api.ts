@@ -396,3 +396,121 @@ export function deleteDependente(contratoId: number, dependenteId: number): Prom
     method: 'DELETE',
   });
 }
+
+export type DashboardContrato = {
+  id: number;
+  codigo: string | null;
+  titularId: number | null;
+  titularNome: string | null;
+  vendedorNome: string | null;
+  dtAquisicao: string | null;
+  dtFim: string | null;
+  status: ContratoStatus;
+};
+
+export type ParcelaStatus = 'ABERTA' | 'PAGA' | 'VENCIDA';
+
+export type DashboardParcela = {
+  id: number;
+  contratoId: number | null;
+  codigo: string | null;
+  titularNome: string | null;
+  dtParcela: string | null;
+  valor: number | null;
+  status: ParcelaStatus;
+};
+
+export type DashboardVendedor = {
+  vendedorId: number | null;
+  vendedorNome: string | null;
+  valorComissao: number;
+  receitaCorretora: number;
+};
+
+export type Dashboard = {
+  contratosAtivos: number;
+  contratosVencendo: number;
+  contratosVencidos: number;
+  vendasHoje: number;
+  renovacoesHoje: number;
+  parcelasAbertas: number;
+  parcelasVencidas: number;
+  comissaoMes: number;
+  receitaCorretoraMes: number;
+  vencendo: DashboardContrato[];
+  vencidos: DashboardContrato[];
+  vendas: DashboardContrato[];
+  renovacoes: DashboardContrato[];
+  parcelasVencidasLista: DashboardParcela[];
+  vendedores: DashboardVendedor[];
+};
+
+export type FinanceiroContrato = {
+  id: number;
+  codigo: string | null;
+  titularId: number | null;
+  titularNome: string | null;
+  seguradoraId: number | null;
+  seguradoraNome: string | null;
+  vendedorId: number | null;
+  vendedorNome: string | null;
+  dtAquisicao: string | null;
+  total: number | null;
+  desconto: number | null;
+  valorComissao: number | null;
+  receitaCorretora: number | null;
+};
+
+export type FinanceiroParcela = {
+  id: number;
+  contratoId: number | null;
+  codigo: string | null;
+  titularNome: string | null;
+  dtParcela: string | null;
+  dtPagamento: string | null;
+  valor: number | null;
+  status: ParcelaStatus;
+};
+
+export type Financeiro = {
+  de: string;
+  ate: string;
+  valorFaturado: number;
+  comissao: number;
+  receitaCorretora: number;
+  contratos: FinanceiroContrato[];
+  parcelas: FinanceiroParcela[];
+};
+
+export type FinanceiroFiltro = {
+  de: string;
+  ate: string;
+  seguradoraId?: number;
+  vendedorId?: number;
+};
+
+export function getDashboard(): Promise<Dashboard> {
+  return request<Dashboard>('/api/dashboard');
+}
+
+export function getFinanceiro(filtro: FinanceiroFiltro): Promise<Financeiro> {
+  const params = new URLSearchParams();
+  if (filtro.de) {
+    params.set('de', filtro.de);
+  }
+  if (filtro.ate) {
+    params.set('ate', filtro.ate);
+  }
+  if (filtro.seguradoraId != null) {
+    params.set('seguradoraId', String(filtro.seguradoraId));
+  }
+  if (filtro.vendedorId != null) {
+    params.set('vendedorId', String(filtro.vendedorId));
+  }
+  const query = params.toString();
+  return request<Financeiro>(query.length > 0 ? `/api/financeiro?${query}` : '/api/financeiro');
+}
+
+export function pagarParcela(id: number): Promise<FinanceiroParcela> {
+  return request<FinanceiroParcela>(`/api/parcelas/${id}/pagar`, { method: 'POST' });
+}

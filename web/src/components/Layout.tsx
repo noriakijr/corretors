@@ -16,6 +16,12 @@ export function Layout() {
           </div>
         </div>
         <nav className="nav" aria-label="Principal">
+          <NavLink to="/" end className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+            Painel
+          </NavLink>
+          <NavLink to="/financeiro" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+            Financeiro
+          </NavLink>
           <NavLink to="/seguradoras" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
             Seguradoras
           </NavLink>

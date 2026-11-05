@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout.tsx';
 import { ContratoDetalhePage } from './pages/ContratoDetalhePage.tsx';
 import { ContratoNovoPage } from './pages/ContratoNovoPage.tsx';
+import { DashboardPage } from './pages/DashboardPage.tsx';
+import { FinanceiroPage } from './pages/FinanceiroPage.tsx';
 import { PlanosPage } from './pages/PlanosPage.tsx';
 import { SeguradorasPage } from './pages/SeguradorasPage.tsx';
 import { TitularFichaPage } from './pages/TitularFichaPage.tsx';
@@ -15,7 +17,8 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/seguradoras" replace />} />
+          <Route index element={<DashboardPage />} />
+          <Route path="financeiro" element={<FinanceiroPage />} />
           <Route path="planos" element={<Navigate to="/seguradoras" replace />} />
           <Route path="seguradoras" element={<SeguradorasPage />} />
           <Route path="seguradoras/:id" element={<PlanosPage />} />

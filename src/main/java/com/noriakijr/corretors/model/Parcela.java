@@ -23,6 +23,8 @@ public class Parcela implements Serializable, IEntity {
 
 	private LocalDateTime dtParcela;
 
+	private LocalDateTime dtPagamento;
+
 	@ManyToOne
 	@JoinColumn(name = "pagamento_id")
 	private Pagamento pagamento;
@@ -50,6 +52,14 @@ public class Parcela implements Serializable, IEntity {
 
 	public void setDtParcela(LocalDateTime dtParcela) {
 		this.dtParcela = dtParcela;
+	}
+
+	public LocalDateTime getDtPagamento() {
+		return dtPagamento;
+	}
+
+	public void setDtPagamento(LocalDateTime dtPagamento) {
+		this.dtPagamento = dtPagamento;
 	}
 
 	public Pagamento getPagamento() {

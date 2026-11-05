@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { ContratoStatus } from '../api.ts';
+import type { ContratoStatus, ParcelaStatus } from '../api.ts';
 import { digitsOnly, moneyInput, parseDecimal, sanitizeMoneyTyping, takeDigits } from '../format.ts';
 
 const STATUS_LABEL: Record<ContratoStatus, string> = {
@@ -32,12 +32,22 @@ export function OkBanner({ message }: { message: string | null }) {
   );
 }
 
+const PARCELA_LABEL: Record<ParcelaStatus, string> = {
+  ABERTA: 'Em aberto',
+  PAGA: 'Paga',
+  VENCIDA: 'Vencida',
+};
+
 export function StatusBadge({ status }: { status: ContratoStatus }) {
   return <span className={`status ${status}`}>{STATUS_LABEL[status]}</span>;
 }
 
 export function PontoAtencao() {
   return <span className="status atencao">Ponto de atenção</span>;
+}
+
+export function ParcelaBadge({ status }: { status: ParcelaStatus }) {
+  return <span className={`status ${status}`}>{PARCELA_LABEL[status]}</span>;
 }
 
 export function Field({
