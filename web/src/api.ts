@@ -145,6 +145,7 @@ export type Contrato = {
   contratoAnteriorId: number | null;
   valorComissao: number | null;
   receitaCorretora: number | null;
+  pontoAtencao: boolean;
 };
 
 export type Dependente = {
@@ -184,6 +185,9 @@ export type RenovarContratoInput = {
   valor?: number;
   codigo?: string;
   descricao?: string;
+  tipoPag?: PagamentoType;
+  vlrDesconto?: number;
+  quantidadeParcelas?: number;
 };
 
 export function apiBase(): string {

@@ -22,12 +22,14 @@ import {
   periodoVigente,
   planoPreco,
   plusYearsIso,
+  pontoAtencao,
   regraDoVendedor,
+  toApiDate,
   toApiDateTime,
 } from '../format.ts';
 import { DependentesEditor } from '../components/DependentesEditor.tsx';
 import type { DependenteDraft } from '../components/DependentesEditor.tsx';
-import { DigitsInput, ErrorBanner, Field, MoneyInput } from '../components/ui.tsx';
+import { DigitsInput, ErrorBanner, Field, MoneyInput, PontoAtencao } from '../components/ui.tsx';
 
 const TIPOS: { value: PagamentoType; label: string }[] = [
   { value: 'DINHEIRO', label: 'Dinheiro' },
@@ -151,11 +153,6 @@ export function ContratoNovoPage() {
       setError('Dependentes só podem ser incluídos com o contrato vigente. Ajuste as datas ou remova os dependentes.');
       return;
     }
-    const limite = planoSelecionado?.limiteDependentes;
-    if (limite != null && dependentes.length > limite) {
-      setError('A quantidade de dependentes passa do limite do plano.');
-      return;
-    }
     const totalVenda = valorNumero - (desconto ?? 0);
     const previa = calcularComissao(regraDoVendedor(planoSelecionado, Number(vendedorId)), totalVenda);
     if (previa.erro) {
@@ -173,8 +170,8 @@ export function ContratoNovoPage() {
         codigo: filled(codigo),
         descricao: filled(descricao),
         dtAquisicao: toApiDateTime(dtAquisicao),
-        dtInicio: toApiDateTime(dtInicio),
-        dtFim: toApiDateTime(dtFim),
+        dtInicio: toApiDate(dtInicio),
+        dtFim: toApiDate(dtFim),
         pagamentoDescricao: filled(pagamentoDescricao),
         tipoPag: tipoPag ? (tipoPag as PagamentoType) : undefined,
         vlrDesconto: desconto,
@@ -435,16 +432,19 @@ export function ContratoNovoPage() {
               />
             </Field>
             <Field label="Início">
-              <input type="datetime-local" value={dtInicio} onChange={(event) => setDtInicio(event.target.value)} />
+              <input type="date" value={dtInicio} onChange={(event) => setDtInicio(event.target.value)} />
             </Field>
             <Field label="Fim">
-              <input type="datetime-local" value={dtFim} onChange={(event) => setDtFim(event.target.value)} />
+              <input type="date" value={dtFim} onChange={(event) => setDtFim(event.target.value)} />
             </Field>
             <p className="note wide">Se o fim ficar vazio, a vigência dura um ano a partir do início.</p>
           </div>
         </form>
         <section className="stack">
-          <h2>Dependentes</h2>
+          <div className="badges">
+            <h2>Dependentes</h2>
+            {pontoAtencao(dependentes.length, planoSelecionado?.limiteDependentes) ? <PontoAtencao /> : null}
+          </div>
           <DependentesEditor
             itens={dependentes}
             limite={planoSelecionado ? planoSelecionado.limiteDependentes : undefined}
@@ -452,9 +452,11 @@ export function ContratoNovoPage() {
             nota={
               !planoSelecionado
                 ? 'Selecione o plano para incluir dependentes.'
-                : vendaVigente
-                  ? 'Eles entram neste contrato, até o limite do plano. Alterar um dependente não ocupa vaga nova.'
-                  : 'O contrato só recebe dependentes enquanto estiver vigente: ativo e com hoje entre o início e o fim.'
+                : pontoAtencao(dependentes.length, planoSelecionado.limiteDependentes)
+                  ? 'Ponto de atenção: a quantidade passa do limite do plano. O contrato fica marcado enquanto estiver acima do limite.'
+                  : vendaVigente
+                    ? 'Eles entram neste contrato. Passar do limite do plano marca o contrato com ponto de atenção.'
+                    : 'O contrato só recebe dependentes enquanto estiver vigente: ativo e com hoje entre o início e o fim.'
             }
             onCreate={incluirDependente}
             onUpdate={alterarDependente}

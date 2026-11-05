@@ -169,6 +169,18 @@ export function toApiDateTime(value: string): string | undefined {
   return trimmed;
 }
 
+export function toApiDate(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const match = /^(\d{4}-\d{2}-\d{2})(?:$|T)/.exec(trimmed);
+  if (!match) {
+    return trimmed;
+  }
+  return match[1];
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) {
     return '—';
@@ -269,6 +281,10 @@ export function periodoVigente(inicio: string | null | undefined, fim: string | 
   const dataFim = fim.slice(0, 10);
   const hoje = hojeIso();
   return dataInicio <= hoje && hoje <= dataFim;
+}
+
+export function pontoAtencao(quantidade: number, limite: number | null | undefined): boolean {
+  return limite != null && quantidade > limite;
 }
 
 export function contadorDependentes(usados: number, limite: number | null | undefined): string {

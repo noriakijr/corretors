@@ -42,6 +42,10 @@ export function StatusBadge({ status }: { status: ContratoStatus }) {
   return <span className={`status ${status}`}>{STATUS_LABEL[status]}</span>;
 }
 
+export function PontoAtencao() {
+  return <span className="status atencao">Ponto de atenção</span>;
+}
+
 export function ParcelaBadge({ status }: { status: ParcelaStatus }) {
   return <span className={`status ${status}`}>{PARCELA_LABEL[status]}</span>;
 }
