@@ -26,13 +26,14 @@ import {
   parseDecimal,
   periodoVigente,
   planoRotulo,
+  pontoAtencao,
   regraDoVendedor,
   textOrDash,
   toApiDateTime,
 } from '../format.ts';
 import { DependentesEditor } from '../components/DependentesEditor.tsx';
 import type { DependenteDraft } from '../components/DependentesEditor.tsx';
-import { ErrorBanner, Field, MoneyInput, OkBanner, StatusBadge } from '../components/ui.tsx';
+import { ErrorBanner, Field, MoneyInput, OkBanner, PontoAtencao, StatusBadge } from '../components/ui.tsx';
 
 function parseId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) {
@@ -157,7 +158,8 @@ export function ContratoDetalhePage() {
   const vigente = Boolean(contrato && ativo && periodoVigente(contrato.dtInicio, contrato.dtFim));
   const plano = planos.find((item) => item.id === contrato?.planoId);
   const limite = plano ? plano.limiteDependentes : undefined;
-  const copiados = limite == null ? dependentes : dependentes.slice(0, limite);
+  const acimaDoLimite =
+    limite === undefined ? Boolean(contrato?.pontoAtencao) : pontoAtencao(dependentes.length, limite);
   const vendedor = vendedores.find((item) => item.id === contrato?.vendedorId);
   const titular = titulares.find((item) => item.id === contrato?.titularId);
   const valorRenovacaoNumero = parseDecimal(valor);
@@ -208,7 +210,7 @@ export function ContratoDetalhePage() {
       });
       navigate(`/contratos/${novo.id}`, {
         state: {
-          notice: 'Contrato renovado. Os dependentes do contrato anterior foram copiados, dentro do limite do plano.',
+          notice: 'Contrato renovado. Os dependentes do contrato anterior foram copiados.',
         },
       });
     } catch (cause: unknown) {
@@ -257,6 +259,11 @@ export function ContratoDetalhePage() {
       <header className="page-head">
         <div>
           <h1>Contrato {contrato ? textOrDash(contrato.codigo) : ''}</h1>
+          {contrato && acimaDoLimite ? (
+            <p className="badges">
+              <PontoAtencao />
+            </p>
+          ) : null}
           <p className="lede">Detalhe da venda. Renovar cria outra linha; não estende este registro.</p>
         </div>
         {contrato?.titularId != null ? (
@@ -283,7 +290,10 @@ export function ContratoDetalhePage() {
               <dd>{textOrDash(contrato.descricao)}</dd>
               <dt>Status</dt>
               <dd>
-                <StatusBadge status={contrato.status} />
+                <span className="badges">
+                  <StatusBadge status={contrato.status} />
+                  {acimaDoLimite ? <PontoAtencao /> : null}
+                </span>
               </dd>
               <dt>Titular</dt>
               <dd>
@@ -339,9 +349,11 @@ export function ContratoDetalhePage() {
               limite={limite}
               editavel={vigente}
               nota={
-                vigente
-                  ? 'Inclusão, alteração e remoção enquanto o contrato está vigente. Remover libera uma vaga.'
-                  : 'Contrato fora da vigência. A lista fica só para consulta.'
+                acimaDoLimite
+                  ? 'Ponto de atenção: a quantidade de dependentes passa do limite do plano. O aviso permanece até a quantidade voltar ao limite.'
+                  : vigente
+                    ? 'Inclusão, alteração e remoção enquanto o contrato está vigente.'
+                    : 'Contrato fora da vigência. A lista fica só para consulta.'
               }
               onCreate={incluirDependente}
               onUpdate={alterarDependente}
@@ -359,14 +371,18 @@ export function ContratoDetalhePage() {
             <div className="stack">
               <h3>Dependentes que serão copiados</h3>
               {dependentes.length === 0 ? <p className="empty">Nenhum dependente para copiar.</p> : null}
-              {limite != null && dependentes.length > limite ? (
+              {dependentes.length > 0 && acimaDoLimite ? (
                 <p className="note">
-                  O plano renovado permite {limite}. Os primeiros {limite} serão copiados.
+                  A renovação copia todos os dependentes. O contrato novo nasce com ponto de atenção, porque a
+                  quantidade passa do limite do plano.
                 </p>
               ) : null}
-              {copiados.length > 0 ? (
+              {dependentes.length > 0 && !acimaDoLimite ? (
+                <p className="note">A renovação copia todos os dependentes.</p>
+              ) : null}
+              {dependentes.length > 0 ? (
                 <ul className="dep-list">
-                  {copiados.map((item) => (
+                  {dependentes.map((item) => (
                     <li key={item.id} className="dep-row">
                       <div>
                         <h3>{item.nome}</h3>

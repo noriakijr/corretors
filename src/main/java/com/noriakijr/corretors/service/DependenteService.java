@@ -21,7 +21,6 @@ import com.noriakijr.corretors.web.dto.DependenteResponse;
 public class DependenteService {
 
 	static final String NAO_VIGENTE = "contrato nao esta vigente";
-	static final String LIMITE = "limite de dependentes atingido";
 
 	private final DependenteRepository dependentes;
 	private final ContratoRepository contratos;
@@ -43,7 +42,6 @@ public class DependenteService {
 	public DependenteResponse create(Long contratoId, DependenteRequest request) {
 		Contrato contrato = requireContrato(contratoId);
 		assertVigente(contrato);
-		assertDentroDoLimite(contrato, 1);
 		return DependenteResponse.from(saveNew(contrato, request));
 	}
 
@@ -70,7 +68,6 @@ public class DependenteService {
 			return;
 		}
 		assertVigente(contrato);
-		assertDentroDoLimite(contrato, itens.size());
 		for (DependenteRequest item : itens) {
 			saveNew(contrato, item);
 		}
@@ -78,12 +75,7 @@ public class DependenteService {
 
 	@Transactional
 	public void copy(Contrato origem, Contrato destino) {
-		Integer limite = limite(destino);
-		int copiados = 0;
 		for (Dependente item : dependentes.findByContratoIdOrderByIdAsc(origem.getId())) {
-			if (limite != null && copiados >= limite) {
-				break;
-			}
 			Dependente copia = new Dependente();
 			copia.setNome(item.getNome());
 			copia.setParentesco(item.getParentesco());
@@ -91,8 +83,16 @@ public class DependenteService {
 			copia.setContrato(destino);
 			copia.setTitular(destino.getTitular());
 			dependentes.save(copia);
-			copiados++;
 		}
+	}
+
+	@Transactional(readOnly = true)
+	public boolean pontoAtencao(Contrato contrato) {
+		return acimaDoLimite(dependentes.countByContratoId(contrato.getId()), limite(contrato));
+	}
+
+	static boolean acimaDoLimite(long quantidade, Integer limite) {
+		return limite != null && quantidade > limite;
 	}
 
 	private Dependente saveNew(Contrato contrato, DependenteRequest request) {
@@ -107,17 +107,6 @@ public class DependenteService {
 		dependente.setNome(request.nome().trim());
 		dependente.setParentesco(request.parentesco().trim());
 		dependente.setDtNasc(request.dtNasc());
-	}
-
-	private void assertDentroDoLimite(Contrato contrato, int novos) {
-		Integer limite = limite(contrato);
-		if (limite == null) {
-			return;
-		}
-		long usados = dependentes.countByContratoId(contrato.getId());
-		if (usados + novos > limite) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, LIMITE);
-		}
 	}
 
 	static void assertVigente(Contrato contrato) {
