@@ -145,6 +145,7 @@ export type Contrato = {
   contratoAnteriorId: number | null;
   valorComissao: number | null;
   receitaCorretora: number | null;
+  pontoAtencao: boolean;
 };
 
 export type Dependente = {

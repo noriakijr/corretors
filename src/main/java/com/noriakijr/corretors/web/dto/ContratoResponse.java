@@ -21,9 +21,10 @@ public record ContratoResponse(
 		Long pagamentoId,
 		Long contratoAnteriorId,
 		Double valorComissao,
-		Double receitaCorretora) {
+		Double receitaCorretora,
+		boolean pontoAtencao) {
 
-	public static ContratoResponse from(Contrato contrato) {
+	public static ContratoResponse from(Contrato contrato, boolean pontoAtencao) {
 		Long planoHistoricoId = contrato.getPlanoHistorico() != null ? contrato.getPlanoHistorico().getId() : null;
 		Long planoId = contrato.getPlanoHistorico() != null && contrato.getPlanoHistorico().getPlano() != null
 				? contrato.getPlanoHistorico().getPlano().getId()
@@ -45,7 +46,8 @@ public record ContratoResponse(
 				contrato.getPagamento() != null ? contrato.getPagamento().getId() : null,
 				contrato.getContratoAnterior() != null ? contrato.getContratoAnterior().getId() : null,
 				contrato.getValorComissao(),
-				contrato.getReceitaCorretora());
+				contrato.getReceitaCorretora(),
+				pontoAtencao);
 	}
 
 }
