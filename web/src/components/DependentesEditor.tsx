@@ -13,8 +13,6 @@ export type DependenteDraft = {
 
 type Item = DependenteDraft & { key: string };
 
-const NOTA_LIMITE = 'O limite de dependentes deste plano foi atingido.';
-
 export function DependentesEditor({
   itens,
   limite,
@@ -40,8 +38,6 @@ export function DependentesEditor({
   const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const noLimite = limite == null;
-  const cheio = !noLimite && itens.length >= limite;
   const incluindo = editing == null;
 
   function reset() {
@@ -178,9 +174,8 @@ export function DependentesEditor({
               <input type="date" value={dtNasc} onChange={(event) => setDtNasc(event.target.value)} />
             </Field>
           </div>
-          {incluindo && cheio ? <p className="note">{NOTA_LIMITE}</p> : null}
           <div className="actions">
-            <button className="button" type="submit" disabled={saving || (incluindo && cheio)}>
+            <button className="button" type="submit" disabled={saving}>
               {saving ? 'Salvando…' : incluindo ? 'Incluir dependente' : 'Salvar dependente'}
             </button>
             {editing != null ? (

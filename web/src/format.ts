@@ -283,6 +283,10 @@ export function periodoVigente(inicio: string | null | undefined, fim: string | 
   return dataInicio <= hoje && hoje <= dataFim;
 }
 
+export function pontoAtencao(quantidade: number, limite: number | null | undefined): boolean {
+  return limite != null && quantidade > limite;
+}
+
 export function contadorDependentes(usados: number, limite: number | null | undefined): string {
   if (limite === undefined) {
     return String(usados);

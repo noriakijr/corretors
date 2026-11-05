@@ -127,19 +127,23 @@ class DependenteApiTest {
 	}
 
 	@Test
-	void rejectsCreateOverLimitAndAllowsEditAndDelete() {
+	void allowsDependentsPastTheLimitAndClearsAttentionWhenCountReturns() {
 		plano.setLimiteDependentes(1);
 		planos.save(plano);
 		long contratoId = contratoVigente("CT-LIMITE");
+		assertThat(contrato(contratoId).get("pontoAtencao")).isEqualTo(false);
 
 		Map<String, Object> primeiro = criarDependente(contratoId, "Ana", "filha", "2014-02-03");
 		assertThat(primeiro.get("nome")).isEqualTo("Ana");
 		assertThat(primeiro.get("parentesco")).isEqualTo("filha");
 		assertThat(primeiro.get("dtNasc").toString()).isEqualTo("2014-02-03");
+		assertThat(contrato(contratoId).get("pontoAtencao")).isEqualTo(false);
 
-		ResponseEntity<Map<String, String>> cheio = postDependente(contratoId, "Bruno", "filho", "2016-05-01", 400);
-		assertThat(cheio.getBody()).isNotNull();
-		assertThat(cheio.getBody().get("message")).contains("limite");
+		Map<String, Object> segundo = criarDependente(contratoId, "Bruno", "filho", "2016-05-01");
+		assertThat(segundo.get("nome")).isEqualTo("Bruno");
+		assertThat(listar(contratoId)).extracting(item -> item.get("nome")).containsExactly("Ana", "Bruno");
+		assertThat(contrato(contratoId).get("pontoAtencao")).isEqualTo(true);
+		assertThat(listarContratos()).extracting(item -> item.get("pontoAtencao")).containsExactly(true);
 
 		Map<String, Object> editado = client.put()
 				.uri("/api/contratos/" + contratoId + "/dependentes/" + ((Number) primeiro.get("id")).longValue())
@@ -150,17 +154,17 @@ class DependenteApiTest {
 				});
 		assertThat(editado).isNotNull();
 		assertThat(editado.get("nome")).isEqualTo("Ana Clara");
-		assertThat(listar(contratoId)).hasSize(1);
+		assertThat(listar(contratoId)).hasSize(2);
+		assertThat(contrato(contratoId).get("pontoAtencao")).isEqualTo(true);
 
 		ResponseEntity<Void> removido = client.delete()
-				.uri("/api/contratos/" + contratoId + "/dependentes/" + ((Number) primeiro.get("id")).longValue())
+				.uri("/api/contratos/" + contratoId + "/dependentes/" + ((Number) segundo.get("id")).longValue())
 				.retrieve()
 				.toBodilessEntity();
 		assertThat(removido.getStatusCode().value()).isEqualTo(204);
-		assertThat(listar(contratoId)).isEmpty();
-
-		criarDependente(contratoId, "Bruno", "filho", "2016-05-01");
-		assertThat(listar(contratoId)).extracting(item -> item.get("nome")).containsExactly("Bruno");
+		assertThat(listar(contratoId)).extracting(item -> item.get("nome")).containsExactly("Ana Clara");
+		assertThat(contrato(contratoId).get("pontoAtencao")).isEqualTo(false);
+		assertThat(listarContratos()).extracting(item -> item.get("pontoAtencao")).containsExactly(false);
 	}
 
 	@Test
@@ -210,7 +214,7 @@ class DependenteApiTest {
 	}
 
 	@Test
-	void copiesDependentsOnRenewRespectingThePlanLimit() {
+	void copiesEveryDependentOnRenewAndMarksWhenOverTheRenewedPlanLimit() {
 		long contratoId = contratoVigente("CT-COPIA");
 		criarDependente(contratoId, "Ana", "filha", "2014-02-03");
 		criarDependente(contratoId, "Bruno", "filho", "2016-05-01");
@@ -230,10 +234,13 @@ class DependenteApiTest {
 				.body(new ParameterizedTypeReference<>() {
 				});
 		assertThat(renovado).isNotNull();
+		assertThat(renovado.get("pontoAtencao")).isEqualTo(true);
 		long novoId = ((Number) renovado.get("id")).longValue();
 
 		assertThat(listar(contratoId)).extracting(item -> item.get("nome")).containsExactly("Ana", "Bruno", "Caio");
-		assertThat(listar(novoId)).extracting(item -> item.get("nome")).containsExactly("Ana", "Bruno");
+		assertThat(listar(novoId)).extracting(item -> item.get("nome")).containsExactly("Ana", "Bruno", "Caio");
+		assertThat(contrato(novoId).get("pontoAtencao")).isEqualTo(true);
+		assertThat(contrato(contratoId).get("pontoAtencao")).isEqualTo(true);
 		assertThat(postDependente(contratoId, "Dora", "filha", "2020-01-01", 400).getBody().get("message"))
 				.contains("vigente");
 
@@ -251,29 +258,51 @@ class DependenteApiTest {
 				.body(new ParameterizedTypeReference<>() {
 				});
 		assertThat(zerado).isNotNull();
-		assertThat(listar(((Number) zerado.get("id")).longValue())).isEmpty();
+		long zeradoId = ((Number) zerado.get("id")).longValue();
+		assertThat(listar(zeradoId)).extracting(item -> item.get("nome")).containsExactly("Eva");
+		assertThat(zerado.get("pontoAtencao")).isEqualTo(true);
 		assertThat(listar(semVaga)).hasSize(1);
+
+		plano.setLimiteDependentes(null);
+		planos.save(plano);
+		long semLimite = contratoVigente("CT-LIVRE");
+		criarDependente(semLimite, "Lia", "filha", "2012-01-01");
+		criarDependente(semLimite, "Nilo", "filho", "2013-01-01");
+		Map<String, Object> livre = client.post()
+				.uri("/api/contratos/" + semLimite + "/renovar")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of(
+						"dtInicio", stamp(LocalDate.now().atStartOfDay()),
+						"dtFim", stamp(LocalDate.now().plusYears(1).atStartOfDay())))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+		assertThat(livre).isNotNull();
+		assertThat(livre.get("pontoAtencao")).isEqualTo(false);
+		assertThat(listar(((Number) livre.get("id")).longValue()))
+				.extracting(item -> item.get("nome"))
+				.containsExactly("Lia", "Nilo");
 	}
 
 	@Test
-	void rejectsDependentsOnCreateWhenTheyExceedTheLimitOrTheContractIsNotVigente() {
+	void acceptsDependentsOverTheLimitOnSaleAndRejectsThemWhenNotVigente() {
 		plano.setLimiteDependentes(1);
 		planos.save(plano);
 
-		ResponseEntity<Map<String, String>> excedeu = client.post()
+		Map<String, Object> acima = client.post()
 				.uri("/api/contratos")
 				.contentType(MediaType.APPLICATION_JSON)
 				.body(contratoBody("CT-ACIMA", LocalDate.now(), LocalDate.now().plusYears(1), List.of(
 						dependente("Ana", "filha", "2014-02-03"),
 						dependente("Bruno", "filho", "2016-05-01"))))
 				.retrieve()
-				.onStatus(status -> status.value() == 400, (req, res) -> {
-				})
-				.toEntity(new ParameterizedTypeReference<>() {
+				.body(new ParameterizedTypeReference<>() {
 				});
-		assertThat(excedeu.getStatusCode().value()).isEqualTo(400);
-		assertThat(excedeu.getBody().get("message")).contains("limite");
-		assertThat(listarContratos()).isEmpty();
+		assertThat(acima).isNotNull();
+		assertThat(acima.get("pontoAtencao")).isEqualTo(true);
+		long acimaId = ((Number) acima.get("id")).longValue();
+		assertThat(listar(acimaId)).extracting(item -> item.get("nome")).containsExactly("Ana", "Bruno");
+		assertThat(listarContratos()).extracting(item -> item.get("codigo")).containsExactly("CT-ACIMA");
 
 		ResponseEntity<Map<String, String>> futuro = client.post()
 				.uri("/api/contratos")
@@ -286,7 +315,9 @@ class DependenteApiTest {
 				.toEntity(new ParameterizedTypeReference<>() {
 				});
 		assertThat(futuro.getStatusCode().value()).isEqualTo(400);
+		assertThat(futuro.getBody()).isNotNull();
 		assertThat(futuro.getBody().get("message")).contains("vigente");
+		assertThat(listarContratos()).extracting(item -> item.get("codigo")).containsExactly("CT-ACIMA");
 
 		Map<String, Object> criado = client.post()
 				.uri("/api/contratos")
@@ -297,9 +328,25 @@ class DependenteApiTest {
 				.body(new ParameterizedTypeReference<>() {
 				});
 		assertThat(criado).isNotNull();
+		assertThat(criado.get("pontoAtencao")).isEqualTo(false);
 		assertThat(listar(((Number) criado.get("id")).longValue()))
 				.extracting(item -> item.get("nome"))
 				.containsExactly("Ana");
+
+		plano.setLimiteDependentes(null);
+		planos.save(plano);
+		Map<String, Object> semLimite = client.post()
+				.uri("/api/contratos")
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(contratoBody("CT-SEM-LIMITE", LocalDate.now(), LocalDate.now().plusYears(1), List.of(
+						dependente("Caio", "filho", "2018-07-09"),
+						dependente("Dora", "filha", "2020-01-01"))))
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+		assertThat(semLimite).isNotNull();
+		assertThat(semLimite.get("pontoAtencao")).isEqualTo(false);
+		assertThat(contrato(((Number) semLimite.get("id")).longValue()).get("pontoAtencao")).isEqualTo(false);
 	}
 
 	private long contratoVigente(String codigo) {
@@ -401,6 +448,16 @@ class DependenteApiTest {
 	private List<Map<String, Object>> listar(long contratoId) {
 		List<Map<String, Object>> body = client.get()
 				.uri("/api/contratos/" + contratoId + "/dependentes")
+				.retrieve()
+				.body(new ParameterizedTypeReference<>() {
+				});
+		assertThat(body).isNotNull();
+		return body;
+	}
+
+	private Map<String, Object> contrato(long contratoId) {
+		Map<String, Object> body = client.get()
+				.uri("/api/contratos/" + contratoId)
 				.retrieve()
 				.body(new ParameterizedTypeReference<>() {
 				});

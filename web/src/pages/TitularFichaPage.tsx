@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { errorMessage, listContratosByTitular, listPlanos, listTitulares } from '../api.ts';
 import type { Contrato, Plano, Titular } from '../api.ts';
 import { formatCep, formatDate, formatDocumento, formatMoney, formatPhone, planoRotulo, textOrDash, yesNo } from '../format.ts';
-import { ErrorBanner, OkBanner, StatusBadge } from '../components/ui.tsx';
+import { ErrorBanner, OkBanner, PontoAtencao, StatusBadge } from '../components/ui.tsx';
 
 function parseId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) {
@@ -189,7 +189,10 @@ export function TitularFichaPage() {
                           <Link to={`/contratos/${contrato.id}`}>{textOrDash(contrato.codigo)}</Link>
                         </td>
                         <td>
-                          <StatusBadge status={contrato.status} />
+                          <span className="badges">
+                            <StatusBadge status={contrato.status} />
+                            {contrato.pontoAtencao ? <PontoAtencao /> : null}
+                          </span>
                         </td>
                         <td>{planoRotulo(plano?.nome, plano?.seguradoraNome, contrato.planoId)}</td>
                         <td className="num">{formatMoney(contrato.valor)}</td>

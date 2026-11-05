@@ -66,13 +66,13 @@ public class ContratoService {
 	public List<ContratoResponse> listByTitular(Long titularId) {
 		requireTitular(titularId);
 		return contratos.findByTitularIdOrderByDtAquisicaoDesc(titularId).stream()
-				.map(ContratoResponse::from)
+				.map(this::toResponse)
 				.toList();
 	}
 
 	@Transactional(readOnly = true)
 	public ContratoResponse get(Long id) {
-		return ContratoResponse.from(requireContrato(id));
+		return toResponse(requireContrato(id));
 	}
 
 	@Transactional
@@ -114,7 +114,7 @@ public class ContratoService {
 		comissoes.aplicar(contrato, plano, vendedor, liquido);
 		contrato = contratos.save(contrato);
 		dependentes.attach(contrato, request.dependentes());
-		return ContratoResponse.from(contrato);
+		return toResponse(contrato);
 	}
 
 	@Transactional
@@ -177,7 +177,11 @@ public class ContratoService {
 		contratos.save(anterior);
 		renovado = contratos.save(renovado);
 		dependentes.copy(anterior, renovado);
-		return ContratoResponse.from(renovado);
+		return toResponse(renovado);
+	}
+
+	private ContratoResponse toResponse(Contrato contrato) {
+		return ContratoResponse.from(contrato, dependentes.pontoAtencao(contrato));
 	}
 
 	private PlanoHistorico snapshot(Plano plano, float valor, LocalDateTime quando) {
