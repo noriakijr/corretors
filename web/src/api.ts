@@ -185,6 +185,9 @@ export type RenovarContratoInput = {
   valor?: number;
   codigo?: string;
   descricao?: string;
+  tipoPag?: PagamentoType;
+  vlrDesconto?: number;
+  quantidadeParcelas?: number;
 };
 
 export function apiBase(): string {

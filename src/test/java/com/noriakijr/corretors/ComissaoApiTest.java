@@ -117,6 +117,24 @@ class ComissaoApiTest {
 	}
 
 	@Test
+	void renewalCommissionUsesDiscountedTotal() {
+		long planoId = idOf(postPlano(Map.of(
+				"nome", "Plano Renovacao Desconto",
+				"tipoComissao", "PERCENTUAL",
+				"percentual", 10)));
+		Map<String, Object> venda = vender(planoId, vendedorId, 100f, null, "CT-COM-REN-DESC");
+
+		Map<String, Object> renovado = post("/api/contratos/" + idOf(venda) + "/renovar", Map.of(
+				"valor", 200f,
+				"vlrDesconto", 50d));
+
+		assertThat(number(renovado.get("valor"))).isCloseTo(150d, within(0.001));
+		assertThat(number(renovado.get("valorComissao"))).isCloseTo(15d, within(0.001));
+		assertThat(number(renovado.get("receitaCorretora"))).isCloseTo(135d, within(0.001));
+		assertPersisted(renovado, 15d, 135d);
+	}
+
+	@Test
 	void rejectsPercentOverOneHundredAndFixedAmountOverTotal() {
 		ResponseEntity<Map<String, String>> percentual = client.post()
 				.uri("/api/seguradoras/" + seguradoraId + "/planos")

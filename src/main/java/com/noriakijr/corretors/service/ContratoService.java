@@ -133,7 +133,7 @@ public class ContratoService {
 
 		RenovarContratoRequest body = request != null
 				? request
-				: new RenovarContratoRequest(null, null, null, null, null);
+				: new RenovarContratoRequest(null, null, null, null, null, null, null, null);
 		LocalDateTime agora = LocalDateTime.now();
 		float valor = body.valor() != null ? body.valor() : anterior.getPlanoHistorico().getValor();
 		if (valor < 0f) {
@@ -141,12 +141,23 @@ public class ContratoService {
 					HttpStatus.BAD_REQUEST,
 					"valor da renovacao nao pode ser negativo");
 		}
+		double liquido = liquido(valor, body.vlrDesconto());
+		int quantidade = quantidade(body.quantidadeParcelas());
 		LocalDateTime dtInicio = body.dtInicio() != null ? body.dtInicio() : agora;
 		LocalDateTime dtFim = body.dtFim() != null ? body.dtFim() : dtInicio.plusYears(1);
 
 		Plano plano = anterior.getPlanoHistorico().getPlano();
-		PlanoHistorico historico = snapshot(plano, valor, agora);
-		Pagamento pagamento = createPagamento("Renovacao", PagamentoType.DINHEIRO, valor, 0.0, valor, 1);
+		PlanoHistorico historico = snapshot(plano, (float) liquido, agora);
+		Pagamento pagamento = createPagamento(
+				"Renovacao",
+				body.tipoPag() != null ? body.tipoPag() : PagamentoType.DINHEIRO,
+				valor,
+				body.vlrDesconto() != null ? body.vlrDesconto() : 0.0,
+				liquido,
+				quantidade);
+		if (quantidade > 1) {
+			createParcelas(pagamento, quantidade, dtInicio, liquido);
+		}
 
 		Contrato renovado = new Contrato();
 		renovado.setCodigo(body.codigo() != null ? body.codigo() : nextCodigo(anterior.getCodigo()));
@@ -160,7 +171,7 @@ public class ContratoService {
 		renovado.setPlanoHistorico(historico);
 		renovado.setPagamento(pagamento);
 		renovado.setContratoAnterior(anterior);
-		comissoes.aplicar(renovado, plano, anterior.getVendedor(), valor);
+		comissoes.aplicar(renovado, plano, anterior.getVendedor(), liquido);
 
 		anterior.setStatus(ContratoStatus.RENOVADO);
 		contratos.save(anterior);

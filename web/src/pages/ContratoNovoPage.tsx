@@ -24,6 +24,7 @@ import {
   plusYearsIso,
   pontoAtencao,
   regraDoVendedor,
+  toApiDate,
   toApiDateTime,
 } from '../format.ts';
 import { DependentesEditor } from '../components/DependentesEditor.tsx';
@@ -169,8 +170,8 @@ export function ContratoNovoPage() {
         codigo: filled(codigo),
         descricao: filled(descricao),
         dtAquisicao: toApiDateTime(dtAquisicao),
-        dtInicio: toApiDateTime(dtInicio),
-        dtFim: toApiDateTime(dtFim),
+        dtInicio: toApiDate(dtInicio),
+        dtFim: toApiDate(dtFim),
         pagamentoDescricao: filled(pagamentoDescricao),
         tipoPag: tipoPag ? (tipoPag as PagamentoType) : undefined,
         vlrDesconto: desconto,
@@ -431,10 +432,10 @@ export function ContratoNovoPage() {
               />
             </Field>
             <Field label="Início">
-              <input type="datetime-local" value={dtInicio} onChange={(event) => setDtInicio(event.target.value)} />
+              <input type="date" value={dtInicio} onChange={(event) => setDtInicio(event.target.value)} />
             </Field>
             <Field label="Fim">
-              <input type="datetime-local" value={dtFim} onChange={(event) => setDtFim(event.target.value)} />
+              <input type="date" value={dtFim} onChange={(event) => setDtFim(event.target.value)} />
             </Field>
             <p className="note wide">Se o fim ficar vazio, a vigência dura um ano a partir do início.</p>
           </div>
